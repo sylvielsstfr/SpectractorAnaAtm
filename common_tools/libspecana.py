@@ -6,6 +6,9 @@ Created on Mon May  7 13:52:53 2018
 @author: dagoret
 """
 import re,os
+import numpy as np
+from locale import *
+setlocale(LC_NUMERIC, '') 
 
 #---------------------------------------------------------------------------------------
 def get_index_from_filename(ffilename,the_searchtag):
@@ -30,3 +33,12 @@ def get_index_from_filename(ffilename,the_searchtag):
     sel_index= int(re.findall(the_searchtag,fn)[0])
     return sel_index
 #--------------------------------------------------------------------------------------
+def Convert_InFloat(arr_str):
+    """
+    In the logbook the decimal point is converted into a comma.
+    Then one need to replace the coma by a decimal point and then convert the string into a number
+    """
+    arr=[ atof(x.replace(",",".")) for x in arr_str]
+    arr=np.array(arr)
+    return arr
+#----------------------------------------------------------------------------------------
