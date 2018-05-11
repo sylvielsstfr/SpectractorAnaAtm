@@ -1,2 +1,9 @@
 *.fits
 *.pdf
+*.ipynb_checkpoints
+*.csv
+*~
+*.pyc
+randomseed
+simulations
+*old*
