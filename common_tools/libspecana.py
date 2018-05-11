@@ -23,6 +23,21 @@ import numpy as np
 from locale import *
 setlocale(LC_NUMERIC, '') 
 
+os.path.dirname(__file__) 
+
+REL_PATH=os.path.dirname(__file__) # relative directory path
+ABS_PATH=os.path.abspath(__file__) # absolute file path
+PYFILE_NAME=os.path.basename(__file__) # the file name only
+
+print 'REL_PATH=',REL_PATH
+print 'ABS_PATH=',ABS_PATH
+print 'PYFILE_NAME=',PYFILE_NAME
+
+PATH_SPECTRACTORSIM=os.path.join(REL_PATH,'../../SpectractorSim')
+sys.path.append(PATH_SPECTRACTORSIM)
+from spectractorsim import *
+
+print 'PATH_SPECTRACTORSIM=',PATH_SPECTRACTORSIM
 #---------------------------------------------------------------------------------------
 def get_index_from_filename(ffilename,the_searchtag):
     """
@@ -212,7 +227,7 @@ def smooth(x,window_len=11,window='hanning'):
 #---------------------------------------------------------------------------------
 #  GetDisperserTransmission
 #-------------------------------------------------------------------------------
-def PlotSpectra(the_filelist,the_obs,the_searchtag,wlshift,the_title,FLAG_WL_CORRECTION,Flag_corr_wl=False):
+def PlotSpectraDataSim(the_filelist,the_obs,the_searchtag,wlshift,the_title,FLAG_WL_CORRECTION,Flag_corr_wl=False):
 
     jet =plt.get_cmap('jet') 
     VMAX=len(the_filelist)
@@ -405,7 +420,119 @@ def PlotSpectraLogRatioDataDivSim(the_filelist,path_tosims,the_obs,the_searchtag
     #plt.grid(True,which="both",ls="-")
     plt.grid(b=True, which='major', color='k', linestyle='-',lw=1)
     plt.grid(b=True, which='minor', color='grey', linestyle='--',lw=0.5)
+#------------------------------------------------------------------------------------    
+def SaveSpectraRatioDataDivSim(the_filelist,path_tosims,the_obs,the_searchtag,wlshift,the_ratio_file,FLAG_WL_CORRECTION,Flag_corr_wl=False):
+    
+    all_ratio_arr=np.zeros((1,len(WL)))
+    all_ratio_arr[0,:]=WL
+    
+    the_selected_indexes=the_obs["index"].values  # get the array of index for that disperser    
+    for the_file in the_filelist:  # loop on reconstruted spectra
+        idx=get_index_from_filename(the_file,the_searchtag)
+        if idx in the_selected_indexes:                # check if tthe index is in the disperser indexes 
+            
+            
+            if FLAG_WL_CORRECTION and Flag_corr_wl:
+                wl_correction=wlshift[wlshift["index"]==idx].loc[:,"wlshift"].values[0]
+            else:
+                wl_correction=0
+            
+            
+            basefn=os.path.basename(the_file)                  # basename of reconstruced spectra
+            basefn2=basefn.replace('reduc','specsim')  # reconstruct the simulation filename
+            the_filesim=os.path.join(path_tosims,basefn2)  # add the path for the simulated file
+            
+            hdu1 = fits.open(the_file)
+            header1=data1=hdu1[0].header
+            airmass=header1["airmass"]
+            target=header1["target"]
+            
+            data1=hdu1[0].data
+            wl1=data1[0]+wl_correction
+            fl1=data1[1]
+            err1=data1[2]
+            
+            # extend range for (wl1,fl1)
+            wl1=np.insert(wl1,0,WL[0])
+            fl1=np.insert(fl1,0,0.)
+            err1=np.insert(err1,0,0.)
+            
+            wl1=np.append(wl1,WL[-1])
+            fl1=np.append(fl1,0.)
+            err1=np.append(err1,0.)
+            
+            hdu2 = fits.open(the_filesim)
+            data2=hdu2[0].data
+            wl2=data2[0]
+            fl2=data2[1]
+            
+            func = interpolate.interp1d(wl1, fl1)
+            fl0=func(WL)
+            ratio=fl0/fl2
+            new_ratio=np.expand_dims(ratio, axis=0)
+            all_ratio_arr=np.append(all_ratio_arr,new_ratio,axis=0)
+            
+            
+    hdu = fits.PrimaryHDU(all_ratio_arr)
+    hdul = fits.HDUList([hdu])
+    hdul.writeto(the_ratio_file,overwrite=True)
+    
+    return all_ratio_arr          
+#---------------------------------------------------------------------------------------    
+#  GetDisperserTransmissionSmooth       
 #--------------------------------------------------------------------------------- 
+def PlotSpectraDataSimSmooth(the_filelist,the_obs,the_searchtag,wlshift,the_title,FLAG_WL_CORRECTION,Flag_corr_wl=False):
+
+    jet =plt.get_cmap('jet') 
+    VMAX=len(the_filelist)
+    cNorm  = colors.Normalize(vmin=0, vmax=VMAX)
+    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=jet)
+    
+    the_selected_indexes=the_obs["index"].values  # get the array of index for that disperser
+    
+    plt.figure(figsize=(10,8))
+    num=0
+    for the_file in the_filelist:
+        num=num+1
+        idx=get_index_from_filename(the_file,the_searchtag)
+        if idx in the_selected_indexes:
+            if FLAG_WL_CORRECTION and Flag_corr_wl:
+                wl_correction=wlshift[wlshift["index"]==idx].loc[:,"wlshift"].values[0]
+            else:
+                wl_correction=0
+            
+            hdu = fits.open(the_file)
+            data=hdu[0].data
+            wl=data[0]+wl_correction
+            fl=data[1]
+            err=data[2]
+            
+            # extend range for (wl1,fl1)
+            wl=np.insert(wl,0,WL[0])
+            fl=np.insert(fl,0,0.)
+            err=np.insert(err,0,0.)
+            
+            wl=np.append(wl,WL[-1])
+            fl=np.append(fl,0.)
+            err=np.append(err,0.)
+            
+            func = interpolate.interp1d(wl, fl)
+            efunc = interpolate.interp1d(wl, err) 
+            
+            fl0=func(WL)
+            er0=efunc(WL)
+            
+            fl_smooth=smooth(fl0,window_len=21)
+            
+            
+            colorVal = scalarMap.to_rgba(num,alpha=1)
+            plt.plot(WL,fl_smooth,c=colorVal,label=str(idx))
+    plt.grid()    
+    plt.title(the_title)
+    plt.xlabel("$\lambda$ (nm)")   
+    plt.ylabel("smoothed spectra")   
+    #plt.legend()
+#-----------------------------------------------------------------------------------------
 def PlotSpectraRatioDataDivSimSmooth(the_filelist,path_tosims,the_obs,the_searchtag,wlshift,the_title,FLAG_WL_CORRECTION,Flag_corr_wl=False,XMIN=400,XMAX=1000.,YMIN=0,YMAX=0):
     
     jet =plt.get_cmap('jet') 
@@ -577,4 +704,69 @@ def PlotSpectraLogRatioDataDivSimSmooth(the_filelist,path_tosims,the_obs,the_sea
     plt.xlabel("$\lambda$ (nm)")  
     plt.ylabel("Spectra ratio (mag)")  
 #------------------------------------------------------------------------------------    
+def SaveSpectraRatioDataDivSimSmooth(the_filelist,path_tosims,the_obs,the_searchtag,wlshift,the_ratio_file,FLAG_WL_CORRECTION,Flag_corr_wl=False):
     
+    all_ratio_arr=np.zeros((1,len(WL)))
+    all_ratio_arr[0,:]=WL
+    
+    the_selected_indexes=the_obs["index"].values  # get the array of index for that disperser    
+    for the_file in the_filelist:  # loop on reconstruted spectra
+        idx=get_index_from_filename(the_file,the_searchtag)
+        if idx in the_selected_indexes:                # check if tthe index is in the disperser indexes 
+            
+            
+            if FLAG_WL_CORRECTION and Flag_corr_wl:
+                wl_correction=wlshift[wlshift["index"]==idx].loc[:,"wlshift"].values[0]
+            else:
+                wl_correction=0
+            
+            
+            basefn=os.path.basename(the_file)                  # basename of reconstruced spectra
+            basefn2=basefn.replace('reduc','specsim')  # reconstruct the simulation filename
+            the_filesim=os.path.join(path_tosims,basefn2)  # add the path for the simulated file
+            
+            hdu1 = fits.open(the_file)
+            header1=data1=hdu1[0].header
+            airmass=header1["airmass"]
+            target=header1["target"]
+            
+            data1=hdu1[0].data
+            wl1=data1[0]+wl_correction
+            fl1=data1[1]
+            err1=data1[2]
+            
+            # extend range for (wl1,fl1)
+            wl1=np.insert(wl1,0,WL[0])
+            fl1=np.insert(fl1,0,0.)
+            err1=np.insert(err1,0,0.)
+            
+            wl1=np.append(wl1,WL[-1])
+            fl1=np.append(fl1,0.)
+            err1=np.append(err1,0.)
+            
+            hdu2 = fits.open(the_filesim)
+            data2=hdu2[0].data
+            wl2=data2[0]
+            fl2=data2[1]
+            
+            func = interpolate.interp1d(wl1, fl1)
+            efunc = interpolate.interp1d(wl1, err1) 
+            
+            fl0=func(WL)
+            er0=efunc(WL)
+            
+            ratio=fl0/fl2
+            
+            f1_smooth=smooth(fl0,window_len=21)
+            f2_smooth=smooth(fl2,window_len=21)
+            ratio=f1_smooth/f2_smooth
+            
+            new_ratio=np.expand_dims(ratio, axis=0)
+            all_ratio_arr=np.append(all_ratio_arr,new_ratio,axis=0)
+            
+            
+    hdu = fits.PrimaryHDU(all_ratio_arr)
+    hdul = fits.HDUList([hdu])
+    hdul.writeto(the_ratio_file,overwrite=True)
+    
+    return all_ratio_arr         
