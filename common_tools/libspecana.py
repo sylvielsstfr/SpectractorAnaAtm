@@ -481,7 +481,7 @@ def SaveSpectraRatioDataDivSim(the_filelist,path_tosims,the_obs,the_searchtag,wl
 #---------------------------------------------------------------------------------------    
 #  GetDisperserTransmissionSmooth       
 #--------------------------------------------------------------------------------- 
-def PlotSpectraDataSimSmooth(the_filelist,the_obs,the_searchtag,wlshift,the_title,FLAG_WL_CORRECTION,Flag_corr_wl=False):
+def PlotSpectraDataSimSmooth(the_filelist,the_obs,the_searchtag,wlshift,the_title,FLAG_WL_CORRECTION,Flag_corr_wl=False,Wwidth=21):
 
     jet =plt.get_cmap('jet') 
     VMAX=len(the_filelist)
@@ -522,7 +522,7 @@ def PlotSpectraDataSimSmooth(the_filelist,the_obs,the_searchtag,wlshift,the_titl
             fl0=func(WL)
             er0=efunc(WL)
             
-            fl_smooth=smooth(fl0,window_len=21)
+            fl_smooth=smooth(fl0,window_len=Wwidth)
             
             
             colorVal = scalarMap.to_rgba(num,alpha=1)
@@ -533,7 +533,8 @@ def PlotSpectraDataSimSmooth(the_filelist,the_obs,the_searchtag,wlshift,the_titl
     plt.ylabel("smoothed spectra")   
     #plt.legend()
 #-----------------------------------------------------------------------------------------
-def PlotSpectraRatioDataDivSimSmooth(the_filelist,path_tosims,the_obs,the_searchtag,wlshift,the_title,FLAG_WL_CORRECTION,Flag_corr_wl=False,XMIN=400,XMAX=1000.,YMIN=0,YMAX=0):
+def PlotSpectraRatioDataDivSimSmooth(the_filelist,path_tosims,the_obs,the_searchtag,wlshift,the_title,FLAG_WL_CORRECTION,Flag_corr_wl=False,
+                                     XMIN=400,XMAX=1000.,YMIN=0,YMAX=0,Wwidth=21):
     
     jet =plt.get_cmap('jet') 
     VMAX=len(the_filelist)
@@ -586,10 +587,10 @@ def PlotSpectraRatioDataDivSimSmooth(the_filelist,path_tosims,the_obs,the_search
             fl0=func(WL)
             er0=efunc(WL)
             
-            f1_smooth=smooth(fl0,window_len=21)
-            f2_smooth=smooth(fl2,window_len=21)
+            f1_smooth=smooth(fl0,window_len=Wwidth)
+            f2_smooth=smooth(fl2,window_len=Wwidth)
             
-            ef1_smooth=smooth(er0,window_len=21)
+            ef1_smooth=smooth(er0,window_len=Wwidth)
             
             the_Y=f1_smooth/f2_smooth
             the_Y_err=ef1_smooth/f2_smooth
@@ -616,7 +617,7 @@ def PlotSpectraRatioDataDivSimSmooth(the_filelist,path_tosims,the_obs,the_search
     plt.ylabel("spectra ratio")  
 #----------------------------------------------------------------------------------------
 def PlotSpectraLogRatioDataDivSimSmooth(the_filelist,path_tosims,the_obs,the_searchtag,wlshift,the_title,
-                        FLAG_WL_CORRECTION,Flag_corr_wl=False,XMIN=400,XMAX=1000.,YMIN=0,YMAX=0):
+                        FLAG_WL_CORRECTION,Flag_corr_wl=False,XMIN=400,XMAX=1000.,YMIN=0,YMAX=0,Wwidth=21):
     
     jet =plt.get_cmap('jet') 
     VMAX=len(the_filelist)
@@ -668,8 +669,8 @@ def PlotSpectraLogRatioDataDivSimSmooth(the_filelist,path_tosims,the_obs,the_sea
             fl0=func(WL)
             er0=efunc(WL)
             
-            f1_smooth=smooth(fl0,window_len=21)
-            f2_smooth=smooth(fl2,window_len=21)
+            f1_smooth=smooth(fl0,window_len=Wwidth)
+            f2_smooth=smooth(fl2,window_len=Wwidth)
             
             #plt.plot(WL,2.5*(np.log10(fl0)-np.log10(fl2)))
             
@@ -704,7 +705,7 @@ def PlotSpectraLogRatioDataDivSimSmooth(the_filelist,path_tosims,the_obs,the_sea
     plt.xlabel("$\lambda$ (nm)")  
     plt.ylabel("Spectra ratio (mag)")  
 #------------------------------------------------------------------------------------    
-def SaveSpectraRatioDataDivSimSmooth(the_filelist,path_tosims,the_obs,the_searchtag,wlshift,the_ratio_file,FLAG_WL_CORRECTION,Flag_corr_wl=False):
+def SaveSpectraRatioDataDivSimSmooth(the_filelist,path_tosims,the_obs,the_searchtag,wlshift,the_ratio_file,FLAG_WL_CORRECTION,Flag_corr_wl=False,Wwidth=21):
     
     all_ratio_arr=np.zeros((1,len(WL)))
     all_ratio_arr[0,:]=WL
@@ -757,8 +758,8 @@ def SaveSpectraRatioDataDivSimSmooth(the_filelist,path_tosims,the_obs,the_search
             
             ratio=fl0/fl2
             
-            f1_smooth=smooth(fl0,window_len=21)
-            f2_smooth=smooth(fl2,window_len=21)
+            f1_smooth=smooth(fl0,window_len=Wwidth)
+            f2_smooth=smooth(fl2,window_len=Wwidth)
             ratio=f1_smooth/f2_smooth
             
             new_ratio=np.expand_dims(ratio, axis=0)
@@ -769,4 +770,272 @@ def SaveSpectraRatioDataDivSimSmooth(the_filelist,path_tosims,the_obs,the_search
     hdul = fits.HDUList([hdu])
     hdul.writeto(the_ratio_file,overwrite=True)
     
-    return all_ratio_arr         
+    return all_ratio_arr 
+#----------------------------------------------------------------------------------
+#
+#--------------------------------------------------------------------------------
+def PlotSpectraDataSimAttenuationSmooth(the_filelist,the_obs,the_searchtag,wlshift,the_title,
+                                        FLAG_WL_CORRECTION,Flag_corr_wl=False,XMIN=0,XMAX=0,YMIN=0,YMAX=0,ZMIN=0,ZMAX=0,Wwidth=21):
+
+    
+    # color according wavelength
+    jet =plt.get_cmap('jet') 
+    if (ZMIN==0 and ZMAX==0):
+        WLMIN=300.
+        WLMAX=600.
+    elif ZMIN==0:
+        WLMIN=WL.min()
+        WLMAX=ZMAX
+    elif ZMAX==0:
+        WLMIN=ZMIN
+        WLMAX=600.
+    else:
+        WLMIN=ZMIN
+        WLMAX=ZMAX
+        
+    cNorm  = colors.Normalize(vmin=WLMIN, vmax=WLMAX)
+    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=jet)
+    
+    the_selected_indexes=the_obs["index"].values  # get the array of index for that disperser
+    
+    # attenuation rows: the file index, the airmass, the attenuation for each WL
+    attenuation=np.zeros((len(the_filelist)+1,2+len(WL)))
+    att_err=np.zeros((len(the_filelist)+1,2+len(WL)))
+    
+    
+   
+    num=0
+    numsel=0
+    for the_file in the_filelist:
+        num=num+1
+        idx=get_index_from_filename(the_file,the_searchtag)
+        if idx in the_selected_indexes:
+            numsel+=1
+            if FLAG_WL_CORRECTION and Flag_corr_wl:
+                wl_correction=wlshift[wlshift["index"]==idx].loc[:,"wlshift"].values[0]
+            else:
+                wl_correction=0
+            
+            hdu = fits.open(the_file)
+            header=hdu[0].header
+            airmass=header["AIRMASS"]
+            data=hdu[0].data
+            wl=data[0]+wl_correction
+            fl=data[1]
+            err=data[2]
+            
+            
+            
+            # extend range for (wl1,fl1)
+            wl=np.insert(wl,0,WL[0])
+            fl=np.insert(fl,0,0.)
+            err=np.insert(err,0,0.)
+            
+            wl=np.append(wl,WL[-1])
+            fl=np.append(fl,0.)
+            err=np.append(err,0.)
+            
+            func = interpolate.interp1d(wl, fl)
+            efunc = interpolate.interp1d(wl, err) 
+            
+            fl0=func(WL)
+            er0=efunc(WL)
+            
+            fl_smooth=smooth(fl0,window_len=Wwidth)
+            errfl_smooth=smooth(er0,window_len=Wwidth)
+            
+            attenuation[numsel,0]=idx
+            attenuation[numsel,1]=airmass
+            attenuation[numsel,2:]=fl_smooth            
+            att_err[numsel,2:]=errfl_smooth
+      
+    AIRMASS_MIN=attenuation[1:,1].min()
+    AIRMASS_MAX=attenuation[1:,1].max()
+    
+    all_airmasses=attenuation[1:,1]
+    all_imgidx=attenuation[1:,0]
+    
+    #print 'all_airmasses',all_airmasses
+    #print 'all_indexes',all_imgidx
+    
+    # selection where airmass are OK
+    good_indexes=np.where(attenuation[:,1]>0)[0]
+    
+    #print 'good indexes =',good_indexes
+    
+    sel_attenuation=attenuation[good_indexes,:]
+    sel_airmasses=sel_attenuation[:,1]
+    sel_imgidx=sel_attenuation[:,0]
+    
+    #print 'sel_airmasses',sel_airmasses
+    #print 'sel_indexes',sel_imgidx
+    
+    airmassmin_index=np.where(sel_airmasses==sel_airmasses.min())[0][0]
+    #print 'airmass-min = ',sel_airmasses[airmassmin_index]
+    
+    # loop on wavelength bins
+    #plt.figure(figsize=(15,4))
+    #plt.plot(sel_imgidx,sel_airmasses,'o')
+    #plt.show()
+    
+    plt.figure(figsize=(15,8))
+    # loop on wavelength indexes
+    for idx_wl in np.arange(2,len(WL)+2): 
+        if WL[idx_wl-2]<WLMIN:
+            continue
+        if WL[idx_wl-2]>WLMAX:
+            break
+        colorVal = scalarMap.to_rgba(WL[idx_wl-2],alpha=1)
+        att_airmassmin=sel_attenuation[airmassmin_index,idx_wl]
+        plt.semilogy(sel_airmasses,sel_attenuation[:,idx_wl],'o-',c=colorVal)
+          
+            
+    
+    plt.grid(b=True, which='major', color='k', linestyle='-',lw=1)
+    plt.grid(b=True, which='minor', color='grey', linestyle='--',lw=0.5)
+    plt.title(the_title)
+    plt.xlabel("airmass")   
+    plt.ylabel("intensity in erg/cm2/s:nm")   
+    #plt.legend()  
+    plt.show() 
+#----------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------
+def PlotSpectraDataSimAttenuationSmoothBin(the_filelist,the_obs,the_searchtag,wlshift,the_title,
+                                        FLAG_WL_CORRECTION,Flag_corr_wl=False,XMIN=0,XMAX=0,YMIN=0,YMAX=0,ZMIN=0,ZMAX=0,Wwidth=21,Bwidth=20):
+
+    
+    # color according wavelength
+    jet =plt.get_cmap('jet') 
+    if (ZMIN==0 and ZMAX==0):
+        WLMIN=300.
+        WLMAX=600.
+    elif ZMIN==0:
+        WLMIN=WL.min()
+        WLMAX=ZMAX
+    elif ZMAX==0:
+        WLMIN=ZMIN
+        WLMAX=600.
+    else:
+        WLMIN=ZMIN
+        WLMAX=ZMAX
+        
+    cNorm  = colors.Normalize(vmin=WLMIN, vmax=WLMAX)
+    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=jet)
+    
+    the_selected_indexes=the_obs["index"].values  # get the array of index for that disperser
+    
+    # attenuation rows: the file index, the airmass, the attenuation for each WL
+    attenuation=np.zeros((len(the_filelist)+1,2+len(WL)))
+    att_err=np.zeros((len(the_filelist)+1,2+len(WL)))
+    
+    
+   
+    num=0
+    numsel=0
+    for the_file in the_filelist:
+        num=num+1
+        idx=get_index_from_filename(the_file,the_searchtag)
+        if idx in the_selected_indexes:
+            numsel+=1
+            if FLAG_WL_CORRECTION and Flag_corr_wl:
+                wl_correction=wlshift[wlshift["index"]==idx].loc[:,"wlshift"].values[0]
+            else:
+                wl_correction=0
+            
+            hdu = fits.open(the_file)
+            header=hdu[0].header
+            airmass=header["AIRMASS"]
+            data=hdu[0].data
+            wl=data[0]+wl_correction
+            fl=data[1]
+            err=data[2]
+            
+            
+            
+            # extend range for (wl1,fl1)
+            wl=np.insert(wl,0,WL[0])
+            fl=np.insert(fl,0,0.)
+            err=np.insert(err,0,0.)
+            
+            wl=np.append(wl,WL[-1])
+            fl=np.append(fl,0.)
+            err=np.append(err,0.)
+            
+            func = interpolate.interp1d(wl, fl)
+            efunc = interpolate.interp1d(wl, err) 
+            
+            fl0=func(WL)
+            er0=efunc(WL)
+            
+            fl_smooth=smooth(fl0,window_len=Wwidth)
+            errfl_smooth=smooth(er0,window_len=Wwidth)
+            
+            attenuation[numsel,0]=idx
+            attenuation[numsel,1]=airmass
+            attenuation[numsel,2:]=fl_smooth            
+            att_err[numsel,2:]=errfl_smooth
+      
+    AIRMASS_MIN=attenuation[1:,1].min()
+    AIRMASS_MAX=attenuation[1:,1].max()
+    
+    all_airmasses=attenuation[1:,1]
+    all_imgidx=attenuation[1:,0]
+    
+    #print 'all_airmasses',all_airmasses
+    #print 'all_indexes',all_imgidx
+    
+    # selection where airmass are OK
+    good_indexes=np.where(attenuation[:,1]>0)[0]
+    
+    #print 'good indexes =',good_indexes
+    
+    sel_attenuation=attenuation[good_indexes,:]
+    sel_airmasses=sel_attenuation[:,1]
+    sel_imgidx=sel_attenuation[:,0]
+    
+    #print 'sel_airmasses',sel_airmasses
+    #print 'sel_indexes',sel_imgidx
+    
+    airmassmin_index=np.where(sel_airmasses==sel_airmasses.min())[0][0]
+    #print 'airmass-min = ',sel_airmasses[airmassmin_index]
+    
+    # loop on wavelength bins
+    #plt.figure(figsize=(15,4))
+    #plt.plot(sel_imgidx,sel_airmasses,'o')
+    #plt.show()
+    
+    plt.figure(figsize=(15,8))
+    # loop on wavelength indexes
+    for idx_wl in np.arange(2,len(WL)+2,Bwidth): 
+        if WL[idx_wl-2]<WLMIN:
+            continue
+        if WL[idx_wl-2]>WLMAX:
+            break
+        colorVal = scalarMap.to_rgba(WL[idx_wl-2],alpha=1)
+        idx_startwl=idx_wl
+        idx_stopwl=min(idx_wl+Bwidth-1,sel_attenuation.shape[1])
+        
+        thelabel="{:d}-{:d} nm".format(WL[idx_startwl-2],WL[idx_stopwl-2] )
+        
+        FluxBin=sel_attenuation[:,idx_startwl:idx_stopwl]
+        FluxAver=np.average(FluxBin,axis=1)
+        att_airmassmin=sel_attenuation[airmassmin_index,idx_wl]
+        plt.semilogy(sel_airmasses,FluxAver,'o-',c=colorVal,label=thelabel)
+          
+            
+    
+    plt.grid(b=True, which='major', color='k', linestyle='-',lw=1)
+    plt.grid(b=True, which='minor', color='grey', linestyle='--',lw=0.5)
+    plt.title(the_title)
+    plt.xlabel("airmass")   
+    plt.ylabel("intensity in erg/cm2/s:nm")   
+    plt.legend(loc='best')  
+    if XMIN==0 and XMAX==0:
+        plt.xlim(0.7,sel_airmasses.max())
+    elif XMIN==0:
+        plt.xlim(0.7,XMAX)
+    elif XMAX==0:
+        plt.xlim(XMIN,sel_airmasses.max())
+    else:
+        plt.xlim(XMIN,XMAX)
+    plt.show()               
