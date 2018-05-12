@@ -224,6 +224,25 @@ def smooth(x,window_len=11,window='hanning'):
     else:           #odd case
         return y[(window_len/2-1):-(window_len/2)] 
     
+#--------------------------------------------------------------------------------
+def PlotAirmass(obs):
+    plt.figure(figsize=(15,5))
+    plt.plot(obs["index"],Convert_InFloat(obs["airmass"]),'bo')
+    plt.xlabel("image index number")
+    plt.ylabel("airmass")
+    plt.title('Airmass vs image index number')
+   
+    plt.grid(b=True,which='major', linestyle='-', linewidth=1, color='black')
+# Customize the minor grid
+    plt.grid(b=True,which='minor', linestyle=':', linewidth=0.5, color='grey')
+    
+    #plt.tick_params(which='both', # Options for both major and minor ticks
+    #            top='on', # turn off top ticks
+    #            left='on', # turn off left ticks
+    #            right='on',  # turn off right ticks
+    #            bottom='on') # turn off bottom ticks  
+    plt.show()
+    
 #---------------------------------------------------------------------------------
 #  GetDisperserTransmission
 #-------------------------------------------------------------------------------
@@ -270,6 +289,9 @@ def PlotSpectraRatioDataDivSim(the_filelist,path_tosims,the_obs,the_searchtag,wl
     plt.figure(figsize=(10,8))
     num=0
     
+    all_Y_max=[]
+    all_Y_min=[]
+    
     for the_file in the_filelist:  # loop on reconstruted spectra
         num+=1
         idx=get_index_from_filename(the_file,the_searchtag)
@@ -288,6 +310,9 @@ def PlotSpectraRatioDataDivSim(the_filelist,path_tosims,the_obs,the_searchtag,wl
             
             hdu1 = fits.open(the_file)
             data1=hdu1[0].data
+            header1=hdu1[0].header
+            filter1=header1["FILTER1"]
+            
             wl1=data1[0]+wl_correction
             fl1=data1[1]
             err1=data1[2]
@@ -315,18 +340,55 @@ def PlotSpectraRatioDataDivSim(the_filelist,path_tosims,the_obs,the_searchtag,wl
             ratio=fl0/fl2
             eratio=er0/fl2
             
+            #search nan
+            #bad_bins=np.where(np.logical_or(np.isnan(ratio),np.isnan(eratio)))[0]
+            #good_bins=np.where(np.logical_and(~np.isnan(ratio),~np.isnan(eratio)))[0]
+            
+            bad_bins=np.where(np.logical_or(~np.isfinite(ratio),~np.isfinite(eratio)))[0]
+            good_bins=np.where(np.logical_and(np.isfinite(ratio),np.isfinite(eratio)))[0]
+            
+            #print 'bad_bins=',bad_bins
+            #print 'good_bins=',good_bins
+            
+            the_X=WL[good_bins]
+            the_Y=ratio[good_bins]
+            the_EY=eratio[good_bins]
+        
+            #print 'the_X=',the_X
+            #print 'the_Y=',the_Y
+            #print 'the_EY=',the_EY
+            
+        
             colorVal = scalarMap.to_rgba(num)
             #plt.plot(WL,ratio,'-',color=colorVal)
-            plt.fill_between(WL,y1=ratio-1.96*eratio,y2=ratio+1.96*eratio,facecolor='grey',alpha=0.5)
-            plt.errorbar(WL,ratio,yerr=eratio,fmt = '-',markersize = 1,color=colorVal,zorder = 300,antialiased = True)
             
+            #plt.fill_between(WL,y1=ratio-1.96*eratio,y2=ratio+1.96*eratio,facecolor='grey',alpha=0.5)
+            #plt.errorbar(WL,ratio,yerr=eratio,fmt = '-',markersize = 1,color=colorVal,zorder = 300,antialiased = True)
             
-            the_Y=ratio
-            sel_iii=np.where(np.logical_and(WL>=XMIN,WL<=XMAX))[0]
+            plt.fill_between(the_X,y1=the_Y-1.96*the_EY,y2=the_Y+1.96*the_EY,facecolor='grey',alpha=0.5)
+            plt.errorbar(the_X,the_Y,yerr=the_EY,fmt = '-',markersize = 1,color=colorVal,zorder = 300,antialiased = True)
+            #plt.plot(the_X,the_Y,yerr=the_EY, '.')
+            
+            #sel_iii=np.where(np.logical_and(WL>=XMIN,WL<=XMAX))[0]
+            
+            sel_iii=np.where(np.logical_and(the_X>=XMIN,the_X<=XMAX))[0]
+            
+            #print 'sel_iii=',sel_iii
+            
             the_Y_max=the_Y[sel_iii].max()*1.5
             the_Y_min=the_Y[sel_iii].min()/1.5
             
+            #print 'the_Y_min =',the_Y_min,' the_Y_max =',the_Y_max
             
+            all_Y_max.append(the_Y_max)
+            all_Y_min.append(the_Y_min)
+     
+    all_Y_max=np.array(all_Y_max)
+    all_Y_min=np.array(all_Y_min)
+    
+    the_Y_min=all_Y_min.min()
+    the_Y_max=all_Y_max.max()
+    
     plt.xlim(XMIN,XMAX)
     
     if YMIN==0 and YMAX==0 :
@@ -348,7 +410,8 @@ def PlotSpectraLogRatioDataDivSim(the_filelist,path_tosims,the_obs,the_searchtag
     the_selected_indexes=the_obs["index"].values  # get the array of index for that disperser
     
     plt.figure(figsize=(10,8))
-    
+    all_Y_max=[]
+    all_Y_min=[]
     num=0
     for the_file in the_filelist:  # loop on reconstruted spectra
         num+=1
@@ -395,17 +458,40 @@ def PlotSpectraLogRatioDataDivSim(the_filelist,path_tosims,the_obs,the_searchtag
             the_Y=fl0/fl2
             the_Y_err=er0/fl2
             
+            ratio=fl0/fl2
+            eratio=er0/fl2
+            
+            bad_bins=np.where(np.logical_or(~np.isfinite(ratio),~np.isfinite(eratio)))[0]
+            good_bins=np.where(np.logical_and(np.isfinite(ratio),np.isfinite(eratio)))[0]
+            
+            #print 'bad_bins=',bad_bins
+            #print 'good_bins=',good_bins
+            
+            the_X=WL[good_bins]
+            the_Y=ratio[good_bins]
+            the_EY=eratio[good_bins]
+            
+            
             colorVal = scalarMap.to_rgba(num)
             #plt.semilogy(WL,the_Y,'o',color=colorVal)
-            plt.semilogy(WL,the_Y,'-',color=colorVal)
+            plt.semilogy(the_X,the_Y,'-',color=colorVal)
             
-            sel_iii=np.where(np.logical_and(WL>=XMIN,WL<=XMAX))[0]
+            sel_iii=np.where(np.logical_and(the_X>=XMIN,the_X<=XMAX))[0]
+            
             the_Y_max=np.max(the_Y[sel_iii])*3.0
             the_Y_min=np.min(the_Y[sel_iii])/3.0
           
-            
+            all_Y_max.append(the_Y_max)
+            all_Y_min.append(the_Y_min)
             
     plt.xlim(XMIN,XMAX)
+    
+    all_Y_max=np.array(all_Y_max)
+    all_Y_min=np.array(all_Y_min)
+    
+    the_Y_min=all_Y_min.min()
+    the_Y_max=all_Y_max.max()
+    
     
     if YMIN==0 and YMAX==0 :
         plt.ylim(the_Y_min,the_Y_max)
@@ -469,6 +555,9 @@ def SaveSpectraRatioDataDivSim(the_filelist,path_tosims,the_obs,the_searchtag,wl
             func = interpolate.interp1d(wl1, fl1)
             fl0=func(WL)
             ratio=fl0/fl2
+            
+            
+            
             new_ratio=np.expand_dims(ratio, axis=0)
             all_ratio_arr=np.append(all_ratio_arr,new_ratio,axis=0)
             
@@ -545,6 +634,10 @@ def PlotSpectraRatioDataDivSimSmooth(the_filelist,path_tosims,the_obs,the_search
     
     plt.figure(figsize=(10,8))
     num=0
+    
+    all_Y_max=[]
+    all_Y_min=[]
+    
     for the_file in the_filelist:  # loop on reconstruted spectra
         num+=1
         idx=get_index_from_filename(the_file,the_searchtag)
@@ -592,19 +685,41 @@ def PlotSpectraRatioDataDivSimSmooth(the_filelist,path_tosims,the_obs,the_search
             
             ef1_smooth=smooth(er0,window_len=Wwidth)
             
-            the_Y=f1_smooth/f2_smooth
-            the_Y_err=ef1_smooth/f2_smooth
+            ratio=f1_smooth/f2_smooth
+            eratio=ef1_smooth/f2_smooth
             
-            sel_iii=np.where(np.logical_and(WL>=XMIN,WL<=XMAX))[0]
+            
+            bad_bins=np.where(np.logical_or(~np.isfinite(ratio),~np.isfinite(eratio)))[0]
+            good_bins=np.where(np.logical_and(np.isfinite(ratio),np.isfinite(eratio)))[0]
+            
+            
+            the_X=WL[good_bins]
+            the_Y=ratio[good_bins]
+            the_EY=eratio[good_bins]
+            
+           
+            
+            sel_iii=np.where(np.logical_and(the_X>=XMIN,the_X<=XMAX))[0]
+            
             the_Y_max=the_Y[sel_iii].max()*1.5
+            the_Y_min=the_Y[sel_iii].min()/1.5
+            
+            all_Y_max.append(the_Y_max)
+            all_Y_min.append(the_Y_min)
             
             colorVal = scalarMap.to_rgba(num,alpha=1)
             
-            plt.plot(WL,the_Y,color=colorVal)
-            plt.errorbar(WL,the_Y,yerr=the_Y_err,fmt = 'o',markersize = 1,color=colorVal,zorder = 300,antialiased = True)
+            plt.plot(the_X,the_Y,color=colorVal)
+            plt.errorbar(the_X,the_Y,yerr=the_EY,fmt = 'o',markersize = 1,color=colorVal,zorder = 300,antialiased = True)
             
             
     plt.xlim(XMIN,XMAX)
+    
+    all_Y_max=np.array(all_Y_max)
+    all_Y_min=np.array(all_Y_min)
+    
+    the_Y_min=all_Y_min.min()
+    the_Y_max=all_Y_max.max()
     
     if YMIN==0 and YMAX==0 :
         plt.ylim(0.,the_Y_max)
@@ -628,6 +743,8 @@ def PlotSpectraLogRatioDataDivSimSmooth(the_filelist,path_tosims,the_obs,the_sea
     
     plt.figure(figsize=(10,8))
     num=0
+    all_Y_max=[]
+    all_Y_min=[]
     for the_file in the_filelist:  # loop on reconstruted spectra
         num+=1
         idx=get_index_from_filename(the_file,the_searchtag)
@@ -672,22 +789,41 @@ def PlotSpectraLogRatioDataDivSimSmooth(the_filelist,path_tosims,the_obs,the_sea
             f1_smooth=smooth(fl0,window_len=Wwidth)
             f2_smooth=smooth(fl2,window_len=Wwidth)
             
-            #plt.plot(WL,2.5*(np.log10(fl0)-np.log10(fl2)))
+            ef1_smooth=smooth(er0,window_len=Wwidth)
             
-            the_Y=2.5*(np.log10(f1_smooth)-np.log10(f2_smooth))
-            the_Y=f1_smooth/f2_smooth
+            ratio=f1_smooth/f2_smooth
+            eratio=ratio*(ef1_smooth/f2_smooth)
             
-            sel_iii=np.where(np.logical_and(WL>=XMIN,WL<=XMAX))[0]
+            bad_bins=np.where(np.logical_or(~np.isfinite(ratio),~np.isfinite(eratio)))[0]
+            good_bins=np.where(np.logical_and(np.isfinite(ratio),np.isfinite(eratio)))[0]
+            
+            
+            the_X=WL[good_bins]
+            the_Y=ratio[good_bins]
+            the_EY=eratio[good_bins]
+            
+
+            
+            sel_iii=np.where(np.logical_and(the_X>=XMIN,the_X<=XMAX))[0]
            
             the_Y_max=(np.max(the_Y[sel_iii]))*3.0
             the_Y_min=(np.min(the_Y[sel_iii]))/3.0
+            all_Y_max.append(the_Y_max)
+            all_Y_min.append(the_Y_min)
+            
             
             colorVal = scalarMap.to_rgba(num,alpha=1)
             
-            plt.semilogy(WL,the_Y,color=colorVal)
+            plt.semilogy(the_X,the_Y,color=colorVal)
             
             
     plt.xlim(XMIN,XMAX)
+    
+    all_Y_max=np.array(all_Y_max)
+    all_Y_min=np.array(all_Y_min)
+    
+    the_Y_min=all_Y_min.min()
+    the_Y_max=all_Y_max.max()
     
     if YMIN==0 and YMAX==0 :
         print 'the_Y_min,the_Y_max =',the_Y_min,the_Y_max
