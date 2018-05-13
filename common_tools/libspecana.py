@@ -13,6 +13,8 @@ import glob
 from matplotlib.backends.backend_pdf import PdfPages 
 from scipy import interpolate
 from astropy.io import fits
+import pysynphot as S
+
 import sys,os
 PATH_SPECTRACTORSIM='../../SpectractorSim'
 sys.path.append(PATH_SPECTRACTORSIM)
@@ -29,15 +31,64 @@ REL_PATH=os.path.dirname(__file__) # relative directory path
 ABS_PATH=os.path.abspath(__file__) # absolute file path
 PYFILE_NAME=os.path.basename(__file__) # the file name only
 
-print 'REL_PATH=',REL_PATH
-print 'ABS_PATH=',ABS_PATH
-print 'PYFILE_NAME=',PYFILE_NAME
+#print 'REL_PATH=',REL_PATH
+#print 'ABS_PATH=',ABS_PATH
+#print 'PYFILE_NAME=',PYFILE_NAME
 
 PATH_SPECTRACTORSIM=os.path.join(REL_PATH,'../../SpectractorSim')
 sys.path.append(PATH_SPECTRACTORSIM)
 from spectractorsim import *
 
-print 'PATH_SPECTRACTORSIM=',PATH_SPECTRACTORSIM
+#print 'PATH_SPECTRACTORSIM=',PATH_SPECTRACTORSIM
+
+CALSPEC_FILENAMES={'HD111980':'hd111980_stis_003.fits','HD205905':'hd205905_stis_003.fits',
+                   'HD160617':'hd160617_stis_003.fits','HD185975':'hd185975_stis_003.fits'}
+#---------------------------------------------------------------------------------------
+def GetSED(starname):
+    """
+    Get SED from starname
+    """
+    
+    filename=CALSPEC_FILENAMES[starname]
+    
+    fullfilename = os.path.join(os.environ['PYSYN_CDBS'], 'calspec', 'g191b2b_mod_010.fits')
+    sp = S.FileSpectrum(fullfilename)
+    sp.convert('flam')
+    wl=sp.wave/10.
+    flux=sp.flux*10.
+    func = interpolate.interp1d(wl, flux)
+    return func(WL)
+#---------------------------------------------------------------------------------------
+def GetSEDSmooth(starname,Wwidth=21):
+    """
+    Get smoothed SED from starname
+    """
+    
+    flux=GetSED(starname)
+    fluxsmoothed=smooth(flux,window_len=Wwidth)
+    return fluxsmoothed
+#--------------------------------------------------------------------------------------
+def PlotSED(starname,Wwidth=21):
+    
+    f, (ax1, ax2) = plt.subplots(1, 2,figsize=(15,5))
+    
+    flux=GetSED(starname)
+    fluxsm=GetSEDSmooth(starname,Wwidth=Wwidth)
+    
+    ax1.plot(WL,flux,'b-')
+    ax1.set_xlabel('$\lambda$ (nm)')
+    ax1.set_ylabel('erg/cm2/s/nm')
+    ax1.set_title('sed')
+    ax1.grid(True)
+
+    ax2.plot(WL,fluxsm,'b-')
+    ax2.set_xlabel('$\lambda$ (nm)')
+    ax2.set_ylabel('erg/cm2/s/nm')
+    ax2.set_title('smoothed sed')
+    ax2.grid(True)
+
+    plt.suptitle(starname)
+    plt.show()
 #---------------------------------------------------------------------------------------
 def get_index_from_filename(ffilename,the_searchtag):
     """
@@ -270,8 +321,13 @@ def PlotSpectraDataSim(the_filelist,the_obs,the_searchtag,wlshift,the_title,FLAG
             data=hdu[0].data
             wl=data[0]+time_correction
             fl=data[1]
+            err=data[2]
+           
             colorVal = scalarMap.to_rgba(num,alpha=1)
+            
+            plt.fill_between(wl,y1=fl-1.96*err,y2=fl+1.96*err,facecolor='grey',alpha=0.5)
             plt.plot(wl,fl,c=colorVal,label=str(idx))
+            
     plt.grid()    
     plt.title(the_title)
     plt.xlabel("$\lambda$ (nm)")   
@@ -612,9 +668,12 @@ def PlotSpectraDataSimSmooth(the_filelist,the_obs,the_searchtag,wlshift,the_titl
             er0=efunc(WL)
             
             fl_smooth=smooth(fl0,window_len=Wwidth)
-            
+            errfl_smooth=smooth(er0,window_len=Wwidth)
             
             colorVal = scalarMap.to_rgba(num,alpha=1)
+            
+            plt.fill_between(WL,y1=fl_smooth-1.96*errfl_smooth,y2=fl_smooth+1.96*errfl_smooth,facecolor='grey',alpha=0.5)
+            
             plt.plot(WL,fl_smooth,c=colorVal,label=str(idx))
     plt.grid()    
     plt.title(the_title)
