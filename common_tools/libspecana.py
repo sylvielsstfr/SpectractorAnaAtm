@@ -970,7 +970,8 @@ def SaveSpectraRatioDataDivSimSmooth(the_filelist,path_tosims,the_obs,the_search
 #  GetDisperserAttenuation_smooth.ipynb
 #--------------------------------------------------------------------------------
 def PlotSpectraDataSimAttenuationSmooth(the_filelist,the_obs,the_searchtag,wlshift,the_title,
-                                        FLAG_WL_CORRECTION,Flag_corr_wl=False,XMIN=0,XMAX=0,YMIN=0,YMAX=0,ZMIN=0,ZMAX=0,Wwidth=21):
+                                        FLAG_WL_CORRECTION,Flag_corr_wl=False,
+                                        XMIN=0,XMAX=0,YMIN=0,YMAX=0,ZMIN=0,ZMAX=0,Wwidth=21,Mag=True):
 
     
     # color according wavelength
@@ -1082,21 +1083,31 @@ def PlotSpectraDataSimAttenuationSmooth(the_filelist,the_obs,the_searchtag,wlshi
             break
         colorVal = scalarMap.to_rgba(WL[idx_wl-2],alpha=1)
         att_airmassmin=sel_attenuation[airmassmin_index,idx_wl]
-        plt.semilogy(sel_airmasses,sel_attenuation[:,idx_wl],'o-',c=colorVal)
+        
+        
+        if not Mag:
+            plt.semilogy(sel_airmasses,sel_attenuation[:,idx_wl],'o-',c=colorVal)
+        else:
+            plt.plot(sel_airmasses,2.5*np.log10(sel_attenuation[:,idx_wl]),'o-',c=colorVal)
           
             
     
     plt.grid(b=True, which='major', color='k', linestyle='-',lw=1)
     plt.grid(b=True, which='minor', color='grey', linestyle='--',lw=0.5)
     plt.title(the_title)
-    plt.xlabel("airmass")   
-    plt.ylabel("intensity in erg/cm2/s:nm")   
+    plt.xlabel("airmass")  
+    
+    if not Mag:
+        plt.ylabel("intensity in erg/cm2/s/nm")   
+    else:
+        plt.ylabel("intensity in erg/cm2/s/nm (mag)") 
     #plt.legend()  
     plt.show() 
 #----------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------
 def PlotSpectraDataSimAttenuationSmoothBin(the_filelist,the_obs,the_searchtag,wlshift,the_title,
-                                        FLAG_WL_CORRECTION,Flag_corr_wl=False,XMIN=0,XMAX=0,YMIN=0,YMAX=0,ZMIN=0,ZMAX=0,Wwidth=21,Bwidth=20):
+                                        FLAG_WL_CORRECTION,Flag_corr_wl=False,
+                                        XMIN=0,XMAX=0,YMIN=0,YMAX=0,ZMIN=0,ZMAX=0,Wwidth=21,Bwidth=20,Mag=True):
 
     
     # color according wavelength
@@ -1186,6 +1197,7 @@ def PlotSpectraDataSimAttenuationSmoothBin(the_filelist,the_obs,the_searchtag,wl
     #print 'good indexes =',good_indexes
     
     sel_attenuation=attenuation[good_indexes,:]
+    sel_err=att_err[good_indexes,:]
     sel_airmasses=sel_attenuation[:,1]
     sel_imgidx=sel_attenuation[:,0]
     
@@ -1217,23 +1229,42 @@ def PlotSpectraDataSimAttenuationSmoothBin(the_filelist,the_obs,the_searchtag,wl
         
         # slice of  flux in wavelength bins
         FluxBin=sel_attenuation[:,idx_startwl:idx_stopwl]
-        
+        FluxBinErr=sel_err[:,idx_startwl:idx_stopwl]
         # get the average of flux in that big wl bin
         FluxAver=np.average(FluxBin,axis=1)
+        FluxAverErr=np.average(FluxBinErr,axis=1)
         
+        Y0=FluxAver
+        Y1=Y0-FluxAverErr
+        Y2=Y0+FluxAverErr
+                
         # get the attenuation for the airmass-min
         att_airmassmin=sel_attenuation[airmassmin_index,idx_wl]
         
-        # plot the attenuation wrt airmass
-        plt.semilogy(sel_airmasses,FluxAver,'o-',c=colorVal,label=thelabel)
-          
+        if not Mag:
+            plt.fill_between(sel_airmasses,y1=Y1,y2=Y2, where=Y1>0 ,color='grey', alpha=0.3 )        
+            plt.yscale( "log" )
+        
+            # plot the attenuation wrt airmass
+            plt.semilogy(sel_airmasses,Y0,'o-',c=colorVal,label=thelabel)
+        else:
+            newY0=2.5*np.log10(Y0)
+            newY1=2.5*np.log10(Y1)
+            newY2=2.5*np.log10(Y2)
             
-    
+            plt.fill_between(sel_airmasses,y1=newY1,y2=newY2, where=Y1>0 ,color='grey', alpha=0.3 ) 
+            plt.plot(sel_airmasses,newY0,'o-',c=colorVal,label=thelabel)
+                      
     plt.grid(b=True, which='major', color='k', linestyle='-',lw=1)
-    plt.grid(b=True, which='minor', color='grey', linestyle='--',lw=0.5)
+    plt.grid(b=True, which='minor', color='grey', linestyle='--',lw=0.3)
     plt.title(the_title)
-    plt.xlabel("airmass")   
-    plt.ylabel("intensity in erg/cm2/s:nm")   
+    plt.xlabel("airmass")  
+    
+    if not Mag:
+        plt.ylabel("intensity in erg/cm2/s/nm")   
+    else:
+        plt.ylabel("intensity in erg/cm2/s/nm (mag)") 
+        
     plt.legend(loc='best')  
     if XMIN==0 and XMAX==0:
         plt.xlim(0.7,sel_airmasses.max())
@@ -1249,7 +1280,8 @@ def PlotSpectraDataSimAttenuationSmoothBin(the_filelist,the_obs,the_searchtag,wl
 #  GetDisperserAttenuationRatio_smooth.ipynb    
 #------------------------------------------------------------------------------------------
 def PlotSpectraDataSimAttenuationRatioSmooth(the_filelist,the_obs,the_searchtag,wlshift,the_title,
-                                        FLAG_WL_CORRECTION,Flag_corr_wl=False,XMIN=0,XMAX=0,YMIN=0,YMAX=0,ZMIN=0,ZMAX=0,Wwidth=21):
+                                        FLAG_WL_CORRECTION,Flag_corr_wl=False,
+                                        XMIN=0,XMAX=0,YMIN=0,YMAX=0,ZMIN=0,ZMAX=0,Wwidth=21,Mag=True):
 
     
     # color according wavelength
@@ -1367,7 +1399,10 @@ def PlotSpectraDataSimAttenuationRatioSmooth(the_filelist,the_obs,the_searchtag,
         colorVal = scalarMap.to_rgba(WL[idx_wl-2],alpha=1)
         att_airmassmin=sel_attenuation[airmassmin_index,idx_wl]
         
-        plt.semilogy(sel_airmasses,sel_attenuation[:,idx_wl]/sel_sed[:,idx_wl],'o-',c=colorVal)
+        if not Mag:
+            plt.semilogy(sel_airmasses,sel_attenuation[:,idx_wl]/sel_sed[:,idx_wl],'o-',c=colorVal)
+        else:
+            plt.plot(sel_airmasses,2.5*np.log10(sel_attenuation[:,idx_wl]/sel_sed[:,idx_wl]),'o-',c=colorVal)
           
             
     
@@ -1376,7 +1411,10 @@ def PlotSpectraDataSimAttenuationRatioSmooth(the_filelist,the_obs,the_searchtag,
     
     plt.title(the_title)
     plt.xlabel("airmass")   
-    plt.ylabel("intensity in data/ intensity of SED")   
+    if not Mag:
+        plt.ylabel("intensity in data/ intensity of SED")  
+    else:
+        plt.ylabel("intensity in data/ intensity of SED (mag)")  
     #plt.legend()  
     plt.show() 
 #----------------------------------------------------------------------------------------
@@ -1384,7 +1422,8 @@ def PlotSpectraDataSimAttenuationRatioSmooth(the_filelist,the_obs,the_searchtag,
 
 #------------------------------------------------------------------------------------------
 def PlotSpectraDataSimAttenuationRatioSmoothBin(the_filelist,the_obs,the_searchtag,wlshift,the_title,
-                                        FLAG_WL_CORRECTION,Flag_corr_wl=False,XMIN=0,XMAX=0,YMIN=0,YMAX=0,ZMIN=0,ZMAX=0,Wwidth=21,Bwidth=20):
+                                        FLAG_WL_CORRECTION,Flag_corr_wl=False,
+                                        XMIN=0,XMAX=0,YMIN=0,YMAX=0,ZMIN=0,ZMAX=0,Wwidth=21,Bwidth=20,Mag=True):
 
     
         # color according wavelength
@@ -1488,6 +1527,7 @@ def PlotSpectraDataSimAttenuationRatioSmoothBin(the_filelist,the_obs,the_searcht
     
     
     sel_attenuation=attenuation[good_indexes,:]
+    sel_err=att_err[good_indexes,:]
     sel_airmasses=sel_attenuation[:,1]
     sel_imgidx=sel_attenuation[:,0]
     
@@ -1523,24 +1563,49 @@ def PlotSpectraDataSimAttenuationRatioSmoothBin(the_filelist,the_obs,the_searcht
         FluxBin=sel_attenuation[:,idx_startwl:idx_stopwl]
         FluxBinSED=sel_sed[:,idx_startwl:idx_stopwl]
         
+        FluxBinErr=sel_err[:,idx_startwl:idx_stopwl]
+       
+                 
         # get the average of flux in that big wl bin
         FluxAver=np.average(FluxBin,axis=1)
         FluxAverSED=np.average(FluxBinSED,axis=1)
+        FluxAverErr=np.average(FluxBinErr,axis=1)
+        
+        Y0=FluxAver/FluxAverSED
+        Y1=Y0-FluxAverErr/FluxAverSED
+        Y2=Y0+FluxAverErr/FluxAverSED
         
         # get the attenuation for the airmass-min
         att_airmassmin=sel_attenuation[airmassmin_index,idx_wl]
         
-        # plot the attenuation wrt airmass
-        plt.semilogy(sel_airmasses,FluxAver/FluxAverSED,'o-',c=colorVal,label=thelabel)
-          
+        if not Mag:        
+            plt.fill_between(sel_airmasses,y1=Y1,y2=Y2, where=Y1>0 ,color='grey', alpha=0.3 )        
+            plt.yscale( "log" )
+        
+            # plot the attenuation wrt airmass
+            plt.semilogy(sel_airmasses,Y0,'o-',c=colorVal,label=thelabel)
+        else:
+            
+            newY0=2.5*np.log10(Y0)
+            newY1=2.5*np.log10(Y1)
+            newY2=2.5*np.log10(Y2)
+            
+            plt.fill_between(sel_airmasses,y1=newY1,y2=newY2, where=Y1>0 ,color='grey', alpha=0.3 )        
+            
+            # plot the attenuation wrt airmass
+            plt.plot(sel_airmasses,newY0,'o-',c=colorVal,label=thelabel)
             
     
     plt.grid(b=True, which='major', color='k', linestyle='-',lw=1)
     plt.grid(b=True, which='minor', color='grey', linestyle='--',lw=0.5)
     plt.title(the_title)
     plt.xlabel("airmass")   
-    plt.ylabel("intensity in data / intensity in SED")   
+    if not Mag:  
+        plt.ylabel("intensity in data / intensity in SED") 
+    else:
+        plt.ylabel("intensity in data / intensity in SED (mag)") 
     plt.legend(loc='best')  
+    
     if XMIN==0 and XMAX==0:
         plt.xlim(0.7,sel_airmasses.max())
     elif XMIN==0:
