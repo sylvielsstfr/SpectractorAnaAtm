@@ -1826,6 +1826,35 @@ def FitSpectraDataSimAttenuationRatioSmooth(the_filelist,the_obs,the_searchtag,w
 def FitSpectraDataSimAttenuationRatioSmoothBin(the_filelist,the_obs,the_searchtag,wlshift,the_title,
                                         FLAG_WL_CORRECTION,Flag_corr_wl=False,
                                         XMIN=0,XMAX=0,YMIN=0,YMAX=0,ZMIN=0,ZMAX=0,Wwidth=21,Bwidth=20,Mag=True):
+    """
+    
+    FitSpectraDataSimAttenuationRatioSmoothBin(the_filelist,the_obs,the_searchtag,wlshift,the_title,
+                                        FLAG_WL_CORRECTION,Flag_corr_wl=False,
+                                        XMIN=0,XMAX=0,YMIN=0,YMAX=0,ZMIN=0,ZMAX=0,Wwidth=21,Bwidth=20,Mag=True)
+    
+    Fit the bouguer lines on a set of spectra given in the file_list and which are selected in the obs dataset
+    
+    task: show the plot of fit
+    
+    input: 
+        the_filelist,
+        the_obs,
+        the_searchtag,
+        wlshift,
+        the_title,
+        FLAG_WL_CORRECTION,
+        Flag_corr_wl=False,
+        XMIN=0,XMAX=0,
+        YMIN=0,YMAX=0,
+        ZMIN=0,ZMAX=0,
+        Wwidth=21,
+        Bwidth=20,
+        Mag=True
+    
+    return:
+    
+    
+    """
 
     
         # color according wavelength
@@ -1848,10 +1877,10 @@ def FitSpectraDataSimAttenuationRatioSmoothBin(the_filelist,the_obs,the_searchta
     
     the_selected_indexes=the_obs["index"].values  # get the array of index for that disperser
     
-    #------------------------------------------------------------------------
+    ##########################################################################################
     # attenuation container 
     # attenuation rows: the file index, the airmass, the attenuation for each WL
-    #-------------------------------------------------------------------------
+    ##########################################################################################
     attenuation=np.zeros((len(the_filelist)+1,2+len(WL)))
     att_err=np.zeros((len(the_filelist)+1,2+len(WL)))
     all_sed=np.zeros((len(the_filelist)+1,2+len(WL)))
@@ -1946,7 +1975,19 @@ def FitSpectraDataSimAttenuationRatioSmoothBin(the_filelist,the_obs,the_searchta
     #plt.plot(sel_imgidx,sel_airmasses,'o')
     #plt.show()
     
+    ###################################################################################
     ################### Plot the figure ###############################################
+    ###################################################################################
+    
+    # collections to return
+    
+    all_WL=[]
+    all_Y=[]
+    all_EY=[]
+    
+    
+    
+    
     plt.figure(figsize=(18,10))
     # loop on wavelength indexes
     for idx_wl in np.arange(2,len(WL)+2,Bwidth): 
@@ -1956,10 +1997,13 @@ def FitSpectraDataSimAttenuationRatioSmoothBin(the_filelist,the_obs,the_searchta
             break
         
         colorVal = scalarMap.to_rgba(WL[idx_wl-2],alpha=1)
+        
         idx_startwl=idx_wl
         idx_stopwl=min(idx_wl+Bwidth-1,sel_attenuation.shape[1])
         
         thelabel="{:d}-{:d} nm".format(WL[idx_startwl-2],WL[idx_stopwl-2] )
+        
+        WLBins=WL[idx_startwl-2:idx_stopwl-2]
         
         # slice of  flux in wavelength bins
         FluxBin=sel_attenuation[:,idx_startwl:idx_stopwl]
@@ -2002,6 +2046,11 @@ def FitSpectraDataSimAttenuationRatioSmoothBin(the_filelist,the_obs,the_searchta
             plt.plot(Xfit,Yfit+YFitErr,':',c=colorVal)
             plt.plot(Xfit,Yfit-YFitErr,':',c=colorVal)
             
+            all_WL.append(np.average(WLBins)) # average wavelength in that bin
+            all_Y.append(Yfit[0])            # Y for first airmass z=0
+            all_EY.append(YFitErr[0])          # EY extracpolated for that airmass z=0
+            
+            
     
     plt.grid(b=True, which='major', color='black', linestyle='-')
     plt.grid(b=True, which='minor', color='red', linestyle='--')
@@ -2019,9 +2068,21 @@ def FitSpectraDataSimAttenuationRatioSmoothBin(the_filelist,the_obs,the_searchta
         plt.xlim(0.,XMAX)
     plt.show() 
     
+    return np.array(all_WL),np.array(all_Y),np.array(all_EY)
+    
 #-------------------------------------------------------------------------------------        
+def PlotOpticalThroughput(wl,thrpt,err,title):
     
+    plt.figure(figsize=(10,6))
+    plt.title(title)
+    plt.errorbar(wl,thrpt,yerr=err,fmt='o',color='blue',ecolor='red')
     
+    plt.xlabel('$\lambda$ (nm)' )
+    plt.ylabel('total throughput (mag)')
+    #plt.grid(b=True, which='major', color='black', linestyle='-')
+    #plt.grid(b=True, which='minor', color='red', linestyle='--')
+    plt.grid(b=True, which='both')
+    plt.show()
     
 #-------------------------------------------------------------------------------------
 #   EQUIVALENT WIDTH
