@@ -19,11 +19,14 @@ from scipy.optimize import curve_fit
 import pysynphot as S
 
 import sys,os
-PATH_SPECTRACTORSIM='../../SpectractorSim'
-sys.path.append(PATH_SPECTRACTORSIM)
-from spectractorsim import *
+#PATH_SPECTRACTORSIM='../../SpectractorSim'
+#sys.path.append(PATH_SPECTRACTORSIM)
+#PATH_SPECTRACTORSIM='../../Spectractor'
+#sys.path.append(PATH_SPECTRACTOR)
 
-import re,os
+#from spectractorsim import *
+#from spectractor import *
+import re
 import numpy as np
 from locale import *
 setlocale(LC_NUMERIC, '') 
@@ -40,59 +43,77 @@ PYFILE_NAME=os.path.basename(__file__) # the file name only
 
 PATH_SPECTRACTORSIM=os.path.join(REL_PATH,'../../SpectractorSim')
 sys.path.append(PATH_SPECTRACTORSIM)
+PATH_SPECTRACTOR=os.path.join(REL_PATH,'../../Spectractor')
+sys.path.append(PATH_SPECTRACTOR)
 from spectractorsim import *
+from spectractor import *
 
 #print 'PATH_SPECTRACTORSIM=',PATH_SPECTRACTORSIM
 
 CALSPEC_FILENAMES={'HD111980':'hd111980_stis_003.fits','HD205905':'hd205905_stis_003.fits',
                    'HD160617':'hd160617_stis_003.fits','HD185975':'hd185975_stis_003.fits'}
 #---------------------------------------------------------------------------------------
-def GetSED(starname):
+def GetSED(starname,sedunit='flam'):
     """
     Get SED from starname
     """
     
     filename=CALSPEC_FILENAMES[starname]
     
-    fullfilename = os.path.join(os.environ['PYSYN_CDBS'], 'calspec', 'g191b2b_mod_010.fits')
+    fullfilename = os.path.join(os.environ['PYSYN_CDBS'], 'calspec', filename)
     sp = S.FileSpectrum(fullfilename)
-    sp.convert('flam')
+    sp.convert(sedunit)
     wl=sp.wave/10.
     flux=sp.flux*10.
     func = interpolate.interp1d(wl, flux)
-    return func(WL)
+    return func(WL),sedunit
 #---------------------------------------------------------------------------------------
-def GetSEDSmooth(starname,Wwidth=21):
+def GetSEDSmooth(starname,Wwidth=21,sedunit='flam'):
     """
     Get smoothed SED from starname
     """
     
-    flux=GetSED(starname)
+    flux,sedunit=GetSED(starname,sedunit=sedunit)
     fluxsmoothed=smooth(flux,window_len=Wwidth)
-    return fluxsmoothed
+    return fluxsmoothed,sedunit
 #--------------------------------------------------------------------------------------
-def PlotSED(starname,Wwidth=21):
+def PlotSED(starname,Wwidth=21,sedunit='flam',scale='lin'):
     
     f, (ax1, ax2) = plt.subplots(1, 2,figsize=(15,5))
     
-    flux=GetSED(starname)
-    fluxsm=GetSEDSmooth(starname,Wwidth=Wwidth)
+    flux,unit1=GetSED(starname,sedunit=sedunit)
+    fluxsm,unit2=GetSEDSmooth(starname,Wwidth=Wwidth,sedunit=sedunit)
     
-    ax1.plot(WL,flux,'b-')
+    if scale=='lin':
+        ax1.plot(WL,flux,'b-')
+    else:
+        ax1.semilogy(WL,flux,'b-')
     ax1.set_xlabel('$\lambda$ (nm)')
-    ax1.set_ylabel('erg/cm2/s/nm')
+    ax1.set_ylabel(unit1)
     ax1.set_title('sed')
-    ax1.grid(True)
+    ax1.grid(True,which='both')
 
-    ax2.plot(WL,fluxsm,'b-')
+    
+    
+    if scale=='lin':
+        ax2.plot(WL,fluxsm,'b-')
+    else:
+        ax2.semilogy(WL,fluxsm,'b-')
+    
     ax2.set_xlabel('$\lambda$ (nm)')
-    ax2.set_ylabel('erg/cm2/s/nm')
+    ax2.set_ylabel(unit2)
     ax2.set_title('smoothed sed')
-    ax2.grid(True)
+    ax2.grid(True,which='both')
 
     plt.suptitle(starname)
     plt.show()
 #---------------------------------------------------------------------------------------
+def GetTarget(starname):
+    target = Target(starname)
+    target.plot_spectra()
+
+
+#------------------------------------------------------------------------------------
 def get_index_from_filename(ffilename,the_searchtag):
     """
     Function  get_index_from_filename(ffilename,the_searchtag)
@@ -1334,7 +1355,7 @@ def PlotSpectraDataSimAttenuationRatioSmooth(the_filelist,the_obs,the_searchtag,
             objectname=header["TARGET"]
             
             # extract smoothed SED
-            sedsm=GetSEDSmooth(objectname,Wwidth=Wwidth)
+            sedsm,sedunit=GetSEDSmooth(objectname,Wwidth=Wwidth)
             
             
             data=hdu[0].data
@@ -1475,7 +1496,7 @@ def PlotSpectraDataSimAttenuationRatioSmoothBin(the_filelist,the_obs,the_searcht
             objectname=header["TARGET"]
             
             # extract smoothed SED
-            sedsm=GetSEDSmooth(objectname,Wwidth=Wwidth)
+            sedsm,sedunit=GetSEDSmooth(objectname,Wwidth=Wwidth)
             
             
             data=hdu[0].data
@@ -1730,7 +1751,7 @@ def FitSpectraDataSimAttenuationRatioSmooth(the_filelist,the_obs,the_searchtag,w
             objectname=header["TARGET"]
             
             # extract smoothed SED
-            sedsm=GetSEDSmooth(objectname,Wwidth=Wwidth)
+            sedsm,sedunit=GetSEDSmooth(objectname,Wwidth=Wwidth)
             
             
             data=hdu[0].data
@@ -1903,7 +1924,7 @@ def FitSpectraDataSimAttenuationRatioSmoothBin(the_filelist,the_obs,the_searchta
             objectname=header["TARGET"]
             
             # extract smoothed SED
-            sedsm=GetSEDSmooth(objectname,Wwidth=Wwidth)
+            sedsm,sedunit=GetSEDSmooth(objectname,Wwidth=Wwidth)
             
             
             data=hdu[0].data
