@@ -2244,9 +2244,10 @@ def ShowEquivalentWidth2(wl,spec,wl1,wl2,wl3,wl4,label='absortion line',fsize=(1
     #-------------
     # Figure 2
     #-----------
-    axarr[1].plot(wl_cut,ratio)
+    axarr[1].plot(wl_cut,ratio,color='blue')
     axarr[1].plot([wl2,wl2],[0,1.2],'r-.',lw=2)
     axarr[1].plot([wl3,wl3],[0,1.2],'r-.',lw=2)
+    axarr[1].plot([wl1,wl4],[1,1],'g--',lw=1)
     axarr[1].grid(True)
     axarr[1].set_ylim(0.8*ratio.min(),1.2*ratio.max())
     
@@ -3361,3 +3362,72 @@ def PlotEquivalentWidthRatioVsAirMass(all_eqw_widthratio,all_eqw_widthratio_sim,
 
     figfilename=os.path.join(dir_top_img,figname)
     fig.savefig(figfilename)    
+#----------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------- 
+def PlotEQWDataSimSmooth(the_filelist,the_obs,the_searchtag,wlshift,the_title,
+                         FLAG_WL_CORRECTION,Flag_corr_wl=False,Wwidth=21,
+                         wl1=880,wl2=900,wl3=1000,wl4=1020,mod='lin',deg=2):
+
+    jet =plt.get_cmap('jet') 
+    VMAX=len(the_filelist)
+    cNorm  = colors.Normalize(vmin=0, vmax=VMAX)
+    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=jet)
+    
+    the_selected_indexes=the_obs["index"].values  # get the array of index for that disperser
+    
+    plt.figure(figsize=(10,8))
+    num=0
+    for the_file in the_filelist:
+        num=num+1
+        idx=get_index_from_filename(the_file,the_searchtag)
+        if idx in the_selected_indexes:
+            if FLAG_WL_CORRECTION and Flag_corr_wl:
+                wl_correction=wlshift[wlshift["index"]==idx].loc[:,"wlshift"].values[0]
+            else:
+                wl_correction=0
+            
+            hdu = fits.open(the_file)
+            data=hdu[0].data
+            header=hdu[0].header
+            filt=header["FILTER2"]
+            
+            wl=data[0]+wl_correction
+            fl=data[1]
+            err=data[2]
+            
+            # extend range for (wl1,fl1)
+            wl=np.insert(wl,0,WL[0])
+            fl=np.insert(fl,0,0.)
+            err=np.insert(err,0,0.)
+            
+            wl=np.append(wl,WL[-1])
+            fl=np.append(fl,0.)
+            err=np.append(err,0.)
+            
+            func = interpolate.interp1d(wl, fl)
+            efunc = interpolate.interp1d(wl, err) 
+            
+            fl0=func(WL)
+            er0=efunc(WL)
+            
+            fl_smooth=smooth(fl0,window_len=Wwidth)
+            errfl_smooth=smooth(er0,window_len=Wwidth)
+            
+            
+            thetitle=the_title+' '+str(idx)
+            
+            colorVal = scalarMap.to_rgba(num,alpha=1)
+            
+            if mod=='lin' or mod=='linear':
+                ShowEquivalentWidth2(WL,fl_smooth,wl1,wl2,wl3,wl4,label=thetitle)
+            else:
+                ShowEquivalentWidthNonLinear(WL,fl_smooth,wl1,wl2,wl3,wl4,ndeg=deg,label=thetitle)
+            
+            #plt.fill_between(WL,y1=fl_smooth-1.96*errfl_smooth,y2=fl_smooth+1.96*errfl_smooth,facecolor='grey',alpha=0.5)
+            
+            
+    plt.grid()    
+    plt.title(the_title)
+    plt.xlabel("$\lambda$ (nm)")   
+    plt.ylabel("smoothed spectra")   
+    #plt.legend()
