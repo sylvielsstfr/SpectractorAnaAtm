@@ -1657,6 +1657,18 @@ def Varbougline(x,popt,pcov):
 def FitBougherLine(theX,theY,theSigY):
     
     
+    bad_bins=np.where(np.logical_or(np.isnan(theY),np.isnan(theSigY)))[0]
+    
+    if len(bad_bins)>0:
+        print 'bad_bins',bad_bins
+    
+    good_bins=np.where(np.logical_and(~np.isnan(theY),~np.isnan(theSigY)))[0]
+    
+    theX=theX[good_bins]
+    theY=theY[good_bins]
+    theSigY=theSigY[good_bins]
+    
+    
     # range to return  the fit
     xfit=np.linspace(0,theX.max()*1.1,20)    
    
@@ -1681,7 +1693,7 @@ def FitBougherLine(theX,theY,theSigY):
     
         #compute the chi-sq
         chi2=np.sum( ((bougline(theX, *popt) - theY) / theSigY)**2)
-        redchi2=(chi2)/(len(theY)-2)
+        #redchi2=(chi2)/(len(theY)-2)
     
         #chi2sum=(Yfit-np.array(theY))**2/np.array(theSigY)**2
         #chi2=np.average(chi2sum)*chi2sum.shape[0]/(chi2sum.shape[0]-3)
@@ -1806,7 +1818,7 @@ def FitSpectraDataSimAttenuationRatioSmooth(the_filelist,the_obs,the_searchtag,w
     sel_imgidx=sel_attenuation[:,0]  
     sel_sed=all_sed[good_indexes,:]
     
-    airmassmin_index=np.where(sel_airmasses==sel_airmasses.min())[0][0]
+    #airmassmin_index=np.where(sel_airmasses==sel_airmasses.min())[0][0]
     
     
     plt.figure(figsize=(15,8))
@@ -1817,7 +1829,7 @@ def FitSpectraDataSimAttenuationRatioSmooth(the_filelist,the_obs,the_searchtag,w
         if WL[idx_wl-2]>WLMAX:
             break
         colorVal = scalarMap.to_rgba(WL[idx_wl-2],alpha=1)
-        att_airmassmin=sel_attenuation[airmassmin_index,idx_wl]
+        #att_airmassmin=sel_attenuation[airmassmin_index,idx_wl]
         
         if not Mag:
             plt.semilogy(sel_airmasses,sel_attenuation[:,idx_wl]/sel_sed[:,idx_wl],'o-',c=colorVal)
@@ -1988,7 +2000,7 @@ def FitSpectraDataSimAttenuationRatioSmoothBin(the_filelist,the_obs,the_searchta
     
 
     
-    airmassmin_index=np.where(sel_airmasses==sel_airmasses.min())[0][0]
+    #airmassmin_index=np.where(sel_airmasses==sel_airmasses.min())[0][0]
     #print 'airmass-min = ',sel_airmasses[airmassmin_index]
     
     # loop on wavelength bins
@@ -2034,45 +2046,50 @@ def FitSpectraDataSimAttenuationRatioSmoothBin(the_filelist,the_obs,the_searchta
        
                  
         # get the average of flux in that big wl bin
-        FluxAver=np.average(FluxBin,axis=1)
-        FluxAverSED=np.average(FluxBinSED,axis=1)
-        FluxAverErr=np.average(FluxBinErr,axis=1)
         
-        Y0=FluxAver/FluxAverSED
-        Y1=Y0-FluxAverErr/FluxAverSED
-        Y2=Y0+FluxAverErr/FluxAverSED
+        if len(FluxBin>0):
         
-        # get the attenuation for the airmass-min
-        att_airmassmin=sel_attenuation[airmassmin_index,idx_wl]
+            FluxAver=np.average(FluxBin,axis=1)
+            FluxAverSED=np.average(FluxBinSED,axis=1)
+            FluxAverErr=np.average(FluxBinErr,axis=1)
         
-        if not Mag:        
-            plt.fill_between(sel_airmasses,y1=Y1,y2=Y2, where=Y1>0 ,color='grey', alpha=0.3 )        
-            plt.yscale( "log" )
+            Y0=FluxAver/FluxAverSED
+            Y1=Y0-FluxAverErr/FluxAverSED
+            Y2=Y0+FluxAverErr/FluxAverSED
         
-            # plot the attenuation wrt airmass
-            plt.semilogy(sel_airmasses,Y0,'o-',c=colorVal,label=thelabel)
-        else:
+            # get the attenuation for the airmass-min
+            #att_airmassmin=sel_attenuation[airmassmin_index,idx_wl]
+        
+            if not Mag:        
+                plt.fill_between(sel_airmasses,y1=Y1,y2=Y2, where=Y1>0 ,color='grey', alpha=0.3 )        
+                plt.yscale( "log" )
+        
+                # plot the attenuation wrt airmass
+                plt.semilogy(sel_airmasses,Y0,'o-',c=colorVal,label=thelabel)
+            else:
             
-            newY0=2.5*np.log10(Y0)
-            newY1=2.5*np.log10(Y1)
-            newY2=2.5*np.log10(Y2)
+                newY0=2.5*np.log10(Y0)
+                newY1=2.5*np.log10(Y1)
+                newY2=2.5*np.log10(Y2)
             
-            plt.fill_between(sel_airmasses,y1=newY1,y2=newY2, where=Y1>0 ,color='grey', alpha=0.3 )        
+                plt.fill_between(sel_airmasses,y1=newY1,y2=newY2, where=Y1>0 ,color='grey', alpha=0.3 )        
             
-            # plot the attenuation wrt airmass
-            plt.plot(sel_airmasses,newY0,'o-',c=colorVal,label=thelabel)
+                # plot the attenuation wrt airmass
+                plt.plot(sel_airmasses,newY0,'o-',c=colorVal,label=thelabel)
             
-            Xfit,Yfit,YFitErr=FitBougherLine(sel_airmasses,newY0,theSigY=(newY2-newY1)/2.)
-            plt.plot(Xfit,Yfit,'-',c=colorVal)
-            plt.plot(Xfit,Yfit+YFitErr,':',c=colorVal)
-            plt.plot(Xfit,Yfit-YFitErr,':',c=colorVal)
+                Xfit,Yfit,YFitErr=FitBougherLine(sel_airmasses,newY0,theSigY=(newY2-newY1)/2.)
+                plt.plot(Xfit,Yfit,'-',c=colorVal)
+                plt.plot(Xfit,Yfit+YFitErr,':',c=colorVal)
+                plt.plot(Xfit,Yfit-YFitErr,':',c=colorVal)
             
-            all_WL.append(np.average(WLBins)) # average wavelength in that bin
-            all_Y.append(Yfit[0])            # Y for first airmass z=0
-            all_EY.append(YFitErr[0])          # EY extracpolated for that airmass z=0
+                all_WL.append(np.average(WLBins)) # average wavelength in that bin
+                all_Y.append(Yfit[0])            # Y for first airmass z=0
+                all_EY.append(YFitErr[0])          # EY extracpolated for that airmass z=0
             
-            
-    
+    else:
+        print 'FitSpectraDataSimAttenuationRatioSmoothBin : skip bins:',WL[idx_startwl-2],'-',WL[idx_stopwl-2]
+        print 'FluxBin=',FluxBin
+        
     plt.grid(b=True, which='major', color='black', linestyle='-')
     plt.grid(b=True, which='minor', color='red', linestyle='--')
     plt.title(the_title)
@@ -2084,7 +2101,7 @@ def FitSpectraDataSimAttenuationRatioSmoothBin(the_filelist,the_obs,the_searchta
     plt.legend(loc='right', prop={'size':10})  
     
     if XMAX==0:
-        plt.xlim(0.,sel_airmasses.max()*1.3)
+        plt.xlim(0.,AIRMASS_MAX*1.3)
     else:
         plt.xlim(0.,XMAX)
     plt.show() 
