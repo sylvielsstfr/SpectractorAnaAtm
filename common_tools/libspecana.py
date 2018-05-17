@@ -300,6 +300,32 @@ def smooth(x,window_len=11,window='hanning'):
         return y[(window_len/2-1):-(window_len/2)] 
     
 #--------------------------------------------------------------------------------
+def Extrapolate(X,Y):
+    # extrapolate X and Y
+    YMIN=Y.min()-1.
+    X=np.insert(X,0,X[0]-1)
+    X=np.insert(X,0,WL[0])
+    X=np.append(X,WL[-1])
+ 
+    Y=np.insert(Y,0,YMIN)
+    Y=np.insert(Y,0,YMIN)
+    Y=np.append(Y,YMIN)
+    return X,Y
+#---------------------------------------------------------------------------------
+def GetLinearDisperserTransFromMag(X,Y):
+    """
+    Translate throughput in mag into throughput in linear scale
+    """
+    X,Y=Extrapolate(X,Y)
+    indexes=np.argsort(X)
+    X=X[indexes]
+    Y=Y[indexes]
+    Y=smooth(Y,window_len=11)
+    func = interpolate.interp1d(X, Y)   
+    newY=np.power(10.,func(WL)/2.5)
+    return WL
+
+#---------------------------------------------------------------------------------
 def PlotAirmass(obs):
     
     N=len(obs)
