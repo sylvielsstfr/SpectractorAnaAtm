@@ -301,8 +301,15 @@ def smooth(x,window_len=11,window='hanning'):
     
 #--------------------------------------------------------------------------------
 def PlotAirmass(obs):
+    
+    N=len(obs)
+    jet =plt.get_cmap('jet')    
+    cNorm  = colors.Normalize(vmin=0, vmax=N)
+    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=jet)
+    all_colors= scalarMap.to_rgba(np.arange(N),alpha=1)
+    
     plt.figure(figsize=(15,5))
-    plt.plot(obs["index"],Convert_InFloat(obs["airmass"]),'bo')
+    plt.scatter(obs["index"],Convert_InFloat(obs["airmass"]),vmin=0, vmax=N,marker='o',color=all_colors)
     plt.xlabel("image index number")
     plt.ylabel("airmass")
     plt.title('Airmass vs image index number')
