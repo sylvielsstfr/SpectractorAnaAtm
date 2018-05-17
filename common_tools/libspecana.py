@@ -2158,6 +2158,226 @@ def PlotOpticalThroughput(wl,thrpt,err,title):
 #-------------------------------------------------------------------------------------
 #   EQUIVALENT WIDTH
 #----------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#    AnaEqWdtCalibSpectrum.ipynb         
+#---------------------------------------------------------------------------------------------------------
+def errorfill(x, y, yerr, color=None, alpha_fill=0.3, ax=None):
+    ax = ax if ax is not None else plt.gca()
+    if color is None:
+        color = ax._get_lines.color_cycle.next()
+    if np.isscalar(yerr) or len(yerr) == len(y):
+        ymin = y - yerr
+        ymax = y + yerr
+    elif len(yerr) == 2:
+        ymin, ymax = yerr
+    ax.plot(x, y, color=color)
+    ax.fill_between(x, ymax, ymin, color=color, alpha=alpha_fill)
+#------------------------------------------------------------------------------------------------------------  
+    
+import numpy.core.numeric as NX
+from numpy.core import isscalar, abs, finfo, atleast_1d, hstack, dot
+from numpy.lib.twodim_base import diag, vander
+from numpy.lib.function_base import trim_zeros, sort_complex
+from numpy.lib.type_check import iscomplex, real, imag
+from numpy.linalg import eigvals, lstsq, inv
+#---------------------------------------------------------------------------------------------------------
+def polyfit(x, y, deg, rcond=None, full=False, w=None, cov=False):
+    """
+    Least squares polynomial fit.
+    Fit a polynomial ``p(x) = p[0] * x**deg + ... + p[deg]`` of degree `deg`
+    to points `(x, y)`. Returns a vector of coefficients `p` that minimises
+    the squared error.
+    Parameters
+    ----------
+    x : array_like, shape (M,)
+        x-coordinates of the M sample points ``(x[i], y[i])``.
+    y : array_like, shape (M,) or (M, K)
+        y-coordinates of the sample points. Several data sets of sample
+        points sharing the same x-coordinates can be fitted at once by
+        passing in a 2D-array that contains one dataset per column.
+    deg : int
+        Degree of the fitting polynomial
+    rcond : float, optional
+        Relative condition number of the fit. Singular values smaller than
+        this relative to the largest singular value will be ignored. The
+        default value is len(x)*eps, where eps is the relative precision of
+        the float type, about 2e-16 in most cases.
+    full : bool, optional
+        Switch determining nature of return value. When it is False (the
+        default) just the coefficients are returned, when True diagnostic
+        information from the singular value decomposition is also returned.
+    w : array_like, shape (M,), optional
+        weights to apply to the y-coordinates of the sample points.
+    cov : bool, optional
+        Return the estimate and the covariance matrix of the estimate
+        If full is True, then cov is not returned.
+    Returns
+    -------
+    p : ndarray, shape (M,) or (M, K)
+        Polynomial coefficients, highest power first.  If `y` was 2-D, the
+        coefficients for `k`-th data set are in ``p[:,k]``.
+    residuals, rank, singular_values, rcond :
+        Present only if `full` = True.  Residuals of the least-squares fit,
+        the effective rank of the scaled Vandermonde coefficient matrix,
+        its singular values, and the specified value of `rcond`. For more
+        details, see `linalg.lstsq`.
+    V : ndarray, shape (M,M) or (M,M,K)
+        Present only if `full` = False and `cov`=True.  The covariance
+        matrix of the polynomial coefficient estimates.  The diagonal of
+        this matrix are the variance estimates for each coefficient.  If y
+        is a 2-D array, then the covariance matrix for the `k`-th data set
+        are in ``V[:,:,k]``
+    Warns
+    -----
+    RankWarning
+        The rank of the coefficient matrix in the least-squares fit is
+        deficient. The warning is only raised if `full` = False.
+        The warnings can be turned off by
+        >>> import warnings
+        >>> warnings.simplefilter('ignore', np.RankWarning)
+    See Also
+    --------
+    polyval : Computes polynomial values.
+    linalg.lstsq : Computes a least-squares fit.
+    scipy.interpolate.UnivariateSpline : Computes spline fits.
+    Notes
+    -----
+    The solution minimizes the squared error
+    .. math ::
+        E = \\sum_{j=0}^k |p(x_j) - y_j|^2
+    in the equations::
+        x[0]**n * p[0] + ... + x[0] * p[n-1] + p[n] = y[0]
+        x[1]**n * p[0] + ... + x[1] * p[n-1] + p[n] = y[1]
+        ...
+        x[k]**n * p[0] + ... + x[k] * p[n-1] + p[n] = y[k]
+    The coefficient matrix of the coefficients `p` is a Vandermonde matrix.
+    `polyfit` issues a `RankWarning` when the least-squares fit is badly
+    conditioned. This implies that the best fit is not well-defined due
+    to numerical error. The results may be improved by lowering the polynomial
+    degree or by replacing `x` by `x` - `x`.mean(). The `rcond` parameter
+    can also be set to a value smaller than its default, but the resulting
+    fit may be spurious: including contributions from the small singular
+    values can add numerical noise to the result.
+    Note that fitting polynomial coefficients is inherently badly conditioned
+    when the degree of the polynomial is large or the interval of sample points
+    is badly centered. The quality of the fit should always be checked in these
+    cases. When polynomial fits are not satisfactory, splines may be a good
+    alternative.
+    References
+    ----------
+    .. [1] Wikipedia, "Curve fitting",
+           http://en.wikipedia.org/wiki/Curve_fitting
+    .. [2] Wikipedia, "Polynomial interpolation",
+           http://en.wikipedia.org/wiki/Polynomial_interpolation
+    Examples
+    --------
+    >>> x = np.array([0.0, 1.0, 2.0, 3.0,  4.0,  5.0])
+    >>> y = np.array([0.0, 0.8, 0.9, 0.1, -0.8, -1.0])
+    >>> z = np.polyfit(x, y, 3)
+    >>> z
+    array([ 0.08703704, -0.81349206,  1.69312169, -0.03968254])
+    It is convenient to use `poly1d` objects for dealing with polynomials:
+    >>> p = np.poly1d(z)
+    >>> p(0.5)
+    0.6143849206349179
+    >>> p(3.5)
+    -0.34732142857143039
+    >>> p(10)
+    22.579365079365115
+    High-order polynomials may oscillate wildly:
+    >>> p30 = np.poly1d(np.polyfit(x, y, 30))
+    /... RankWarning: Polyfit may be poorly conditioned...
+    >>> p30(4)
+    -0.80000000000000204
+    >>> p30(5)
+    -0.99999999999999445
+    >>> p30(4.5)
+    -0.10547061179440398
+    Illustration:
+    >>> import matplotlib.pyplot as plt
+    >>> xp = np.linspace(-2, 6, 100)
+    >>> _ = plt.plot(x, y, '.', xp, p(xp), '-', xp, p30(xp), '--')
+    >>> plt.ylim(-2,2)
+    (-2, 2)
+    >>> plt.show()
+    """
+    order = int(deg) + 1
+    x = NX.asarray(x) + 0.0
+    y = NX.asarray(y) + 0.0
+
+    # check arguments.
+    if deg < 0:
+        raise ValueError("expected deg >= 0")
+    if x.ndim != 1:
+        raise TypeError("expected 1D vector for x")
+    if x.size == 0:
+        raise TypeError("expected non-empty vector for x")
+    if y.ndim < 1 or y.ndim > 2:
+        raise TypeError("expected 1D or 2D array for y")
+    if x.shape[0] != y.shape[0]:
+        raise TypeError("expected x and y to have same length")
+
+    # set rcond
+    if rcond is None:
+        rcond = len(x)*finfo(x.dtype).eps
+
+    # set up least squares equation for powers of x
+    lhs = vander(x, order)
+    rhs = y
+
+    # apply weighting
+    if w is not None:
+        w = NX.asarray(w) + 0.0
+        if w.ndim != 1:
+            raise TypeError("expected a 1-d array for weights")
+        if w.shape[0] != y.shape[0]:
+            raise TypeError("expected w and y to have the same length")
+        lhs *= w[:, NX.newaxis]
+        if rhs.ndim == 2:
+            rhs *= w[:, NX.newaxis]
+        else:
+            rhs *= w
+
+    # scale lhs to improve condition number and solve
+    scale = NX.sqrt((lhs*lhs).sum(axis=0))
+    lhs /= scale
+    
+    
+    print 'MyPolyfit lhs      =   ', lhs
+    
+    rcond =len(x)*2e-16
+    
+    c, resids, rank, s = lstsq(lhs, rhs, rcond)
+    c = (c.T/scale).T  # broadcast scale coefficients
+    
+    
+    print 'MyPolyfit  c, resids, rank, s   =  ',   c, resids, rank, s
+    
+    
+    
+
+    # warn on rank reduction, which indicates an ill conditioned matrix
+    if rank != order and not full:
+        msg = "Polyfit may be poorly conditioned"
+        warnings.warn(msg, RankWarning)
+
+    if full:
+        return c, resids, rank, s, rcond
+    elif cov:
+        Vbase = inv(dot(lhs.T, lhs))
+        Vbase /= NX.outer(scale, scale)
+        # Some literature ignores the extra -2.0 factor in the denominator, but
+        #  it is included here because the covariance of Multivariate Student-T
+        #  (which is implied by a Bayesian uncertainty analysis) includes it.
+        #  Plus, it gives a slightly more conservative estimate of uncertainty.
+        fac = resids / (len(x) - order - 2.0)
+        if y.ndim == 1:
+            return c, Vbase * fac
+        else:
+            return c, Vbase[:,:, NX.newaxis] * fac
+    else:
+        return c
+#----------------------------------------------------------------------------------------------
 def ShowEquivalentWidth(wl,spec,wl1,wl2,wl3,wl4,label='absortion line',fsize=(12,4)):
     """
     ShowEquivalentWidth : show how the equivalent width must be computed
@@ -2307,203 +2527,9 @@ def ShowEquivalentWidth2(wl,spec,wl1,wl2,wl3,wl4,label='absortion line',fsize=(1
     return equivalent_width    
 
 #--------------------------------------------------------------------------------------------------
-def ShowEquivalentWidthwthStatErrTOREMOVE(wl,spec,specerr,wl1,wl2,wl3,wl4,ndeg=3,thelabel='ShowEquivalentWidthwthStatErr'):
-    """
-    ******************************************************************************
-    ShowEquivalentWidthwthStatErr : show how the equivalent width must be computed
-    
-    - with errors
-    - with non linear method
-    
-    *********************************************************************************
-    """
-    selected_indexes=np.where(np.logical_and(wl>=wl1,wl<=wl4))
-        
-    wl_cut=wl[selected_indexes]
-    spec_cut=spec[selected_indexes]
-    spec_cut_err=specerr[selected_indexes]
-    
-    ymin=spec_cut.min()
-    ymax=spec_cut.max()
-    
-    #############
-    ### Figure 1
-    #############
-    plt.figure()
-    
-    plt.plot(wl_cut,spec_cut,'b-')
-    plt.errorbar(wl_cut,spec_cut,yerr=spec_cut_err,color='red',fmt='.')
-    
-    # vertical bars
-    plt.plot([wl2,wl2],[ymin,ymax],'k-.',lw=2)
-    plt.plot([wl3,wl3],[ymin,ymax],'k-.',lw=2)
-    
-    
-    # continuum fit
-    #------------------
-    continuum_indexes=np.where(np.logical_or(np.logical_and(wl>=wl1,wl<=wl2),np.logical_and(wl>=wl3,wl<wl4)))
 
-    x_cont=wl[continuum_indexes]
-    y_cont=spec[continuum_indexes]
-    y_cont_err=specerr[continuum_indexes]
-    y_w=1./y_cont_err
-    y_w[np.where(y_cont==0)]=0. # erase the empty bins
-   
-    
-    popt_p , pcov_p= np.polyfit(x_cont, y_cont,ndeg,w=y_w,full=False,cov=True,rcond=2.0e-16*len(x_cont)) #rcond mandatory    
-    z_cont_fit=popt_p
-      
 
-    pol_cont_fit=np.poly1d(z_cont_fit)
-    
-    # fitted curve with its error
-    #---------------------------------
-    fit_line_x=np.linspace(wl1,wl4,50)
-    fit_line_y=pol_cont_fit(fit_line_x)
-    fit_line_y_err = []
-    for thex in fit_line_x:
-        dfdx = [ thex**thepow for thepow in np.arange(ndeg,-1,-1)]
-        dfdx=np.array(dfdx)
-        propagated_error=np.dot(dfdx.T,np.dot(pcov_p,dfdx))
-        fit_line_y_err.append(propagated_error)
-    fit_line_y_err=np.array(fit_line_y_err)
-    
-    errorfill(fit_line_x,fit_line_y,fit_line_y_err, color='grey',ax=plt)
-    plt.errorbar(x_cont,y_cont,yerr=y_cont_err,fmt='.',color='blue')
-    plt.plot(fit_line_x,fit_line_y,'g--',lw=1)
-    plt.xlabel(' wavelength (nm)')
-    plt.ylabel(' ADU per second')
-    
-    plt.grid(True)
-    plt.title(thelabel)
-    
-    # compute the ratio spectrum/continuum
-    #-------------------------------------
-    full_continum=pol_cont_fit(wl_cut)    
-    
-    full_continum_err= []
-    for wl in wl_cut:
-        dfdx = [ wl**thepow for thepow in np.arange(ndeg,-1,-1)]
-        dfdx=np.array(dfdx)
-        propagated_error=np.dot(dfdx.T,np.dot(pcov_p,dfdx))
-        full_continum_err.append(propagated_error)
-    full_continum_err=np.array(full_continum_err)
-    
-    
-    ratio=spec_cut/full_continum
-    # error not correlated    
-    ratio_err=ratio*np.sqrt( (spec_cut_err/spec_cut)**2+ (full_continum_err/full_continum)**2)
-    
-    
-    
-    
-    ###################
-    ### Second figure
-    #################
-    plt.figure()
-    plt.plot(wl_cut,ratio,lw=2,color='blue')
-    plt.errorbar(wl_cut,ratio,yerr=ratio_err,fmt='.',lw=2,color='red')
-    plt.plot([wl2,wl2],[0,1.2],'k-.',lw=2)
-    plt.plot([wl3,wl3],[0,1.2],'k-.',lw=2)
-    plt.grid(True)
-    plt.ylim(0.8*ratio.min(),1.2*ratio.max())
-    plt.xlabel(' wavelength (nm)')
-    plt.ylabel(' no unit')
-    plt.title(thelabel)
-    
-    # Compute now the equavalent width
-    #--------------------------------
-    NBBins=len(wl_cut)
-    wl_shift_right=np.roll(wl_cut,1)
-    wl_shift_left=np.roll(wl_cut,-1)
-    wl_bin_size=(wl_shift_left-wl_shift_right)/2. # size of each bin in wavelength
 
-    
-    outside_band_indexes=np.where(np.logical_or(wl_cut<wl2,wl_cut>wl3))
-    wl_bin_size[outside_band_indexes]=0  # erase bin width outside the band
-                       
-    # calculation of equivalent width and its error
-    #-------------------------------------------------
-    absorption_band=wl_bin_size*(1-ratio)
-    absorption_band_error=wl_bin_size*ratio_err
-    
-    equivalent_width= absorption_band.sum()
-    
-    # quadratic sum of errors for each wl bin
-    equivalend_width_error=np.sqrt((absorption_band_error*absorption_band_error).sum() )
-    
-    return equivalent_width,equivalend_width_error
-#----------------------------------------------------------------------------------------------
-
-def ShowEquivalentWidthNonLinearTOREMOVE(wl,spec,wl1,wl2,wl3,wl4,ndeg=3,thelabel='ShowEquivalentWidthNonLinear'):
-    """
-    ShowEquivalentWidthNonLinear : show how the equivalent width must be computed
-    Do not use stats, for simulation by exammple
-    """
-    selected_indexes=np.where(np.logical_and(wl>=wl1,wl<=wl4))
-        
-    wl_cut=wl[selected_indexes]
-    spec_cut=spec[selected_indexes]
-   
-    
-    ymin=spec_cut.min()
-    ymax=spec_cut.max()
-    
-    plt.figure()
-    plt.plot(wl_cut,spec_cut,'r-')
-    plt.plot([wl2,wl2],[ymin,ymax],'k-.',lw=2)
-    plt.plot([wl3,wl3],[ymin,ymax],'k-.',lw=2)
-    
-    
-    # continuum fit
-    continuum_indexes=np.where(np.logical_or(np.logical_and(wl>=wl1,wl<=wl2),np.logical_and(wl>=wl3,wl<wl4)))
-    x_cont=wl[continuum_indexes]
-    y_cont=spec[continuum_indexes]
-    z_cont_fit=np.polyfit(x_cont, y_cont,ndeg,rcond=2.0e-16*len(x_cont))
-        
-    pol_cont_fit=np.poly1d(z_cont_fit)
-    
-    fit_line_x=np.linspace(wl1,wl4,50)
-    fit_line_y=pol_cont_fit(fit_line_x)
-    
-    plt.plot(x_cont,y_cont,marker='.',color='blue',lw=0)
-    plt.plot(fit_line_x,fit_line_y,'g--',lw=2)
-    
-    plt.grid(True)
-    plt.xlabel(' wavelength (nm)')
-    plt.ylabel(' ADU per second')
-    plt.title(thelabel)
-    
-    # compute the ratio spectrum/continuum
-    full_continum=pol_cont_fit(wl_cut)    
-    ratio=spec_cut/full_continum
-    
-    plt.figure()
-    plt.plot(wl_cut,ratio,'b-')
-    plt.plot([wl2,wl2],[0,1.2],'k-.',lw=2)
-    plt.plot([wl3,wl3],[0,1.2],'k-.',lw=2)
-    plt.grid(True)
-    plt.xlabel(' wavelength (nm)')
-    plt.ylabel(' No unit')
-    plt.ylim(0.8*ratio.min(),1.2*ratio.max())
-    plt.title(thelabel)
-    
-    NBBins=len(wl_cut)
-    wl_shift_right=np.roll(wl_cut,1)
-    wl_shift_left=np.roll(wl_cut,-1)
-    wl_bin_size=(wl_shift_left-wl_shift_right)/2. # size of each bin
-
-    
-    outside_band_indexes=np.where(np.logical_or(wl_cut<wl2,wl_cut>wl3))
-    wl_bin_size[outside_band_indexes]=0  # erase bin width outside the band
-                       
-    # calculation of equivalent width
-    
-    absorption_band=wl_bin_size*(1-ratio)
-    equivalent_width= absorption_band.sum()
-    
-    
-    return equivalent_width
 #---------------------------------------------------------------------------------------------
 def ShowEquivalentWidthNonLinear2(wl,spec,wl1,wl2,wl3,wl4,ndeg=3,label='absortion line',fsize=(12,4)):
     """
@@ -2561,6 +2587,8 @@ def ShowEquivalentWidthNonLinear2(wl,spec,wl1,wl2,wl3,wl4,ndeg=3,label='absortio
     
     axarr[1].plot([wl2,wl2],[0,1.2],'k-.',lw=2)
     axarr[1].plot([wl3,wl3],[0,1.2],'k-.',lw=2)
+    axarr[1].plot([wl1,wl4],[1,1],'g-.',lw=2)
+    
     axarr[1].grid(True)
     axarr[1].set_ylim(0.8*ratio.min(),1.2*ratio.max())
     
@@ -2704,6 +2732,8 @@ def ShowEquivalentWidthNonLinearwthStatErr(wl,spec,specerr,wl1,wl2,wl3,wl4,ndeg=
     
     axarr[1].plot([wl2,wl2],[0,1.2],'k-.',lw=2)
     axarr[1].plot([wl3,wl3],[0,1.2],'k-.',lw=2)
+    axarr[1].plot([wl1,wl4],[1,1],'--',color='grey',lw=2)
+    
     axarr[1].grid(True)
     axarr[1].set_ylim(0.8*ratio.min(),1.2*ratio.max())
     axarr[1].set_xlabel('$\lambda$ (nm)')
@@ -2989,62 +3019,9 @@ def ComputeEquivalentWidthNonLinearwthStatErr(wl,spec,specerr,wl1,wl2,wl3,wl4,nd
     
     return equivalent_width,equivalend_width_error
 #----------------------------------------------------------------------------------------------------- 
-def ShowAllEquivalentWidth(all_wl,all_spec,all_filt,wl1,wl2,wl3,wl4,label='absorption line'):
+   
         
-    NBSPECTRA=len(all_spec)
-    
-    for index in np.arange(0,NBSPECTRA):        
-        spectrum=all_spec[index]
-        wl=all_wl[index]
-        
-        newlabel = label+ ' spec {} with disp {} (fit BG-L)'.format(index,all_filt[index]) 
-        
-        ShowEquivalentWidth(wl,spectrum,wl1,wl2,wl3,wl4,label=newlabel,fsize=(9,3))
-#-----------------------------------------------------------------------------------------------        
-def ShowAllEquivalentWidthNonLinear(all_wl,all_spec,all_filt,wl1,wl2,wl3,wl4,ndeg=3,label='absorption line'):
-        
-    NBSPECTRA=len(all_spec)
-    
-    for index in np.arange(0,NBSPECTRA):        
-        spectrum=all_spec[index]
-        wl=all_wl[index]
-        
-        newlabel = label+ ' spec {} with disp {} (fit BG-N)'.format(index,all_filt[index]) 
-        
-        ShowEquivalentWidthNonLinear(wl,spectrum,wl1,wl2,wl3,wl4,ndeg=ndeg,label=newlabel,fsize=(9,3))
-        
-        
-#-----------------------------------------------------------------------------------------------        
-def ShowAllEquivalentWidthNonLinearwthStatErr(all_wl,all_spec,all_spec_err,all_filt,wl1,wl2,wl3,wl4,ndeg=3,label='absorption line'):
-        
-    NBSPECTRA=len(all_spec)
-    
-    for index in np.arange(0,NBSPECTRA):        
-        spectrum=all_spec[index]
-        wl=all_wl[index]
-        err=all_spec_err[index]
-        
-        newlabel = label+ ' spec {} with disp {} (fit BG-N+ stat err)'.format(index,all_filt[index]) 
-        
-        ShowEquivalentWidthNonLinearwthStatErr(wl,spectrum,err,wl1,wl2,wl3,wl4,ndeg=ndeg,label=newlabel,fsize=(9,3))
-#----------------------------------------------------------------------------------------------------        
-        
-#---------------------------------------------------------------------------------------------------
-def ComputeAllEquivalentWidth(all_wl,all_spec,wl1,wl2,wl3,wl4):
-    
-    EQW_coll = []
-    
-    NBSPECTRA=len(all_spec)
-    
-    for index in np.arange(0,NBSPECTRA):        
-        spectrum=all_spec[index]
-        wl=all_wl[index]
-        eqw=ComputeEquivalentWidth(wl,spectrum,wl1,wl2,wl3,wl4)
-        EQW_coll.append(eqw)
-        
-    return np.array(EQW_coll)
-#--------------------------------------------------------------------------------------------
-        
+
 #---------------------------------------------------------------------------------------------------
 def ComputeAllEquivalentWidthNonLinear(all_wl,all_spec,wl1,wl2,wl3,wl4,ndeg=3):
     
@@ -3398,7 +3375,7 @@ def PlotEquivalentWidthRatioVsAirMass(all_eqw_widthratio,all_eqw_widthratio_sim,
 #----------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------- 
 def PlotEQWDataSimSmooth(the_filelist,the_obs,the_searchtag,wlshift,the_title,
-                         FLAG_WL_CORRECTION,Flag_corr_wl=False,Wwidth=21,
+                         FLAG_WL_CORRECTION,Flag_corr_wl=False,Wwidth=11,
                          wl1=880,wl2=900,wl3=1000,wl4=1020,mod='lin',deg=2):
 
     jet =plt.get_cmap('jet') 
@@ -3452,9 +3429,10 @@ def PlotEQWDataSimSmooth(the_filelist,the_obs,the_searchtag,wlshift,the_title,
             colorVal = scalarMap.to_rgba(num,alpha=1)
             
             if mod=='lin' or mod=='linear':
-                ShowEquivalentWidth2(WL,fl_smooth,wl1,wl2,wl3,wl4,label=thetitle)
+                #ShowEquivalentWidth2(WL,fl_smooth,wl1,wl2,wl3,wl4,label=thetitle)
+                ShowEquivalentWidthNonLinear2(WL,fl_smooth,wl1,wl2,wl3,wl4,ndeg=1,label=thetitle)
             else:
-                ShowEquivalentWidthNonLinear(WL,fl_smooth,wl1,wl2,wl3,wl4,ndeg=deg,label=thetitle)
+                ShowEquivalentWidthNonLinear2(WL,fl_smooth,wl1,wl2,wl3,wl4,ndeg=deg,label=thetitle)
             
             #plt.fill_between(WL,y1=fl_smooth-1.96*errfl_smooth,y2=fl_smooth+1.96*errfl_smooth,facecolor='grey',alpha=0.5)
             
@@ -3464,3 +3442,277 @@ def PlotEQWDataSimSmooth(the_filelist,the_obs,the_searchtag,wlshift,the_title,
     plt.xlabel("$\lambda$ (nm)")   
     plt.ylabel("smoothed spectra")   
     #plt.legend()
+#--------------------------------------------------------------------------------- 
+def PlotEQWDataSimSmoothWithStatErr(the_filelist,the_obs,the_searchtag,wlshift,the_title,
+                         FLAG_WL_CORRECTION,Flag_corr_wl=False,Wwidth=11,
+                         wl1=880,wl2=900,wl3=1000,wl4=1020,mod='lin',deg=2):
+
+    jet =plt.get_cmap('jet') 
+    VMAX=len(the_filelist)
+    cNorm  = colors.Normalize(vmin=0, vmax=VMAX)
+    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=jet)
+    
+    the_selected_indexes=the_obs["index"].values  # get the array of index for that disperser
+    
+    plt.figure(figsize=(10,8))
+    num=0
+    for the_file in the_filelist:
+        num=num+1
+        idx=get_index_from_filename(the_file,the_searchtag)
+        if idx in the_selected_indexes:
+            if FLAG_WL_CORRECTION and Flag_corr_wl:
+                wl_correction=wlshift[wlshift["index"]==idx].loc[:,"wlshift"].values[0]
+            else:
+                wl_correction=0
+            
+            hdu = fits.open(the_file)
+            data=hdu[0].data
+            header=hdu[0].header
+            filt=header["FILTER2"]
+            
+            wl=data[0]+wl_correction
+            fl=data[1]
+            err=data[2]
+            
+            # extend range for (wl1,fl1)
+            wl=np.insert(wl,0,WL[0])
+            fl=np.insert(fl,0,0.)
+            err=np.insert(err,0,0.)
+            
+            wl=np.append(wl,WL[-1])
+            fl=np.append(fl,0.)
+            err=np.append(err,0.)
+            
+            func = interpolate.interp1d(wl, fl)
+            efunc = interpolate.interp1d(wl, err) 
+            
+            fl0=func(WL)
+            er0=efunc(WL)
+            
+            fl_smooth=smooth(fl0,window_len=Wwidth)
+            errfl_smooth=smooth(er0,window_len=Wwidth)
+            
+            
+            thetitle=the_title+' '+str(idx)
+            
+            colorVal = scalarMap.to_rgba(num,alpha=1)
+            
+            if mod=='lin' or mod=='linear':
+                #ShowEquivalentWidth2(WL,fl_smooth,wl1,wl2,wl3,wl4,label=thetitle)
+                ShowEquivalentWidthNonLinearwthStatErr(WL,fl_smooth,errfl_smooth,wl1,wl2,wl3,wl4,ndeg=1,label=thetitle)
+                
+            else:
+                #ShowEquivalentWidthNonLinear2(WL,fl_smooth,wl1,wl2,wl3,wl4,ndeg=deg,label=thetitle)
+                ShowEquivalentWidthNonLinearwthStatErr(WL,fl_smooth,errfl_smooth,wl1,wl2,wl3,wl4,ndeg=deg,label=thetitle)
+            
+            #plt.fill_between(WL,y1=fl_smooth-1.96*errfl_smooth,y2=fl_smooth+1.96*errfl_smooth,facecolor='grey',alpha=0.5)
+            
+            
+    plt.grid()    
+    plt.title(the_title)
+    plt.xlabel("$\lambda$ (nm)")   
+    plt.ylabel("smoothed spectra")   
+    #plt.legend()
+#----------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------- 
+def ComputeEQWDataSimSmooth(the_filelist,the_obs,the_searchtag,wlshift,the_title,
+                         FLAG_WL_CORRECTION,Flag_corr_wl=False,Wwidth=11,
+                         wl1=880,wl2=900,wl3=1000,wl4=1020,mod='lin',deg=2):
+
+    jet =plt.get_cmap('jet') 
+    VMAX=len(the_filelist)
+    cNorm  = colors.Normalize(vmin=0, vmax=VMAX)
+    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=jet)
+    
+    the_selected_indexes=the_obs["index"].values  # get the array of index for that disperser
+    
+    
+    EQW_coll = []
+    all_colors= []
+    all_indexes = []
+    
+    plt.figure(figsize=(10,8))
+    num=0
+    for the_file in the_filelist:
+        num=num+1
+        idx=get_index_from_filename(the_file,the_searchtag)
+        if idx in the_selected_indexes:
+            if FLAG_WL_CORRECTION and Flag_corr_wl:
+                wl_correction=wlshift[wlshift["index"]==idx].loc[:,"wlshift"].values[0]
+            else:
+                wl_correction=0
+            
+            hdu = fits.open(the_file)
+            data=hdu[0].data
+            header=hdu[0].header
+            filt=header["FILTER2"]
+            
+            wl=data[0]+wl_correction
+            fl=data[1]
+            err=data[2]
+            
+            # extend range for (wl1,fl1)
+            wl=np.insert(wl,0,WL[0])
+            fl=np.insert(fl,0,0.)
+            err=np.insert(err,0,0.)
+            
+            wl=np.append(wl,WL[-1])
+            fl=np.append(fl,0.)
+            err=np.append(err,0.)
+            
+            func = interpolate.interp1d(wl, fl)
+            efunc = interpolate.interp1d(wl, err) 
+            
+            fl0=func(WL)
+            er0=efunc(WL)
+            
+            fl_smooth=smooth(fl0,window_len=Wwidth)
+            errfl_smooth=smooth(er0,window_len=Wwidth)
+            
+            
+           
+            
+            all_indexes.append(idx)
+            
+            colorVal = scalarMap.to_rgba(num,alpha=1)
+            
+            if mod=='lin' or mod=='linear':
+                #ShowEquivalentWidth2(WL,fl_smooth,wl1,wl2,wl3,wl4,label=thetitle)
+                #ShowEquivalentWidthNonLinear2(WL,fl_smooth,wl1,wl2,wl3,wl4,ndeg=1,label=thetitle)
+                eqw=ComputeEquivalentWidthNonLinear(WL,fl_smooth,wl1,wl2,wl3,wl4,ndeg=1)
+            else:
+                #ShowEquivalentWidthNonLinear2(WL,fl_smooth,wl1,wl2,wl3,wl4,ndeg=deg,label=thetitle)
+                eqw=ComputeEquivalentWidthNonLinear(WL,fl_smooth,wl1,wl2,wl3,wl4,ndeg=deg)
+            
+            #plt.fill_between(WL,y1=fl_smooth-1.96*errfl_smooth,y2=fl_smooth+1.96*errfl_smooth,facecolor='grey',alpha=0.5)
+    
+
+              
+            all_colors.append(colorVal )        
+            EQW_coll.append(eqw)
+
+    EQW_coll=np.array(EQW_coll)  
+    all_indexes=np.array(all_indexes)
+    
+    plt.figure(figsize=(18,4))  
+    
+    plt.plot(all_indexes,EQW_coll,'bo')  
+    
+    aver=np.average(EQW_coll)
+    sigma=np.std(EQW_coll)
+    
+    EQWMIN=aver-sigma
+    EQWMAX=aver+sigma
+    
+    plt.plot([all_indexes[0],all_indexes[-1]],[aver,aver],'r-')
+    plt.fill_between([all_indexes[0],all_indexes[-1]],y1=[EQWMIN,EQWMIN],y2=[EQWMAX,EQWMAX],facecolor='grey',alpha=0.25)
+               
+    plt.grid()    
+    plt.title(the_title)
+    plt.xlabel("index")   
+    plt.ylabel("EQW")   
+    
+    return EQW_coll
+#--------------------------------------------------------------------------------- 
+#--------------------------------------------------------------------------------- 
+def ComputeEQWDataSimSmoothWithStatErr(the_filelist,the_obs,the_searchtag,wlshift,the_title,
+                         FLAG_WL_CORRECTION,Flag_corr_wl=False,Wwidth=11,
+                         wl1=880,wl2=900,wl3=1000,wl4=1020,mod='lin',deg=2):
+
+    the_selected_indexes=the_obs["index"].values  # get the array of index for that disperser
+    
+    jet =plt.get_cmap('jet') 
+    VMAX=len(the_filelist)
+    cNorm  = colors.Normalize(vmin=0, vmax=VMAX)
+    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=jet)
+    
+    
+    
+    EQW_coll = []
+    EQWErr_coll = []
+    all_indexes = []
+    
+  
+    num=0
+    for the_file in the_filelist:
+        num=num+1
+        idx=get_index_from_filename(the_file,the_searchtag)
+        if idx in the_selected_indexes:
+            if FLAG_WL_CORRECTION and Flag_corr_wl:
+                wl_correction=wlshift[wlshift["index"]==idx].loc[:,"wlshift"].values[0]
+            else:
+                wl_correction=0
+            
+            hdu = fits.open(the_file)
+            data=hdu[0].data
+            header=hdu[0].header
+            filt=header["FILTER2"]
+            
+            wl=data[0]+wl_correction
+            fl=data[1]
+            err=data[2]
+            
+            # extend range for (wl1,fl1)
+            wl=np.insert(wl,0,WL[0])
+            fl=np.insert(fl,0,0.)
+            err=np.insert(err,0,0.)
+            
+            wl=np.append(wl,WL[-1])
+            fl=np.append(fl,0.)
+            err=np.append(err,0.)
+            
+            func = interpolate.interp1d(wl, fl)
+            efunc = interpolate.interp1d(wl, err) 
+            
+            fl0=func(WL)
+            er0=efunc(WL)
+            
+            fl_smooth=smooth(fl0,window_len=Wwidth)
+            errfl_smooth=smooth(er0,window_len=Wwidth)
+            
+            all_indexes.append(idx)
+            
+            
+            colorVal = scalarMap.to_rgba(num,alpha=1)
+            
+            if mod=='lin' or mod=='linear':
+                #ShowEquivalentWidth2(WL,fl_smooth,wl1,wl2,wl3,wl4,label=thetitle)
+                #ShowEquivalentWidthNonLinearwthStatErr(WL,fl_smooth,errfl_smooth,wl1,wl2,wl3,wl4,ndeg=1,label=thetitle)
+                eqw,eqw_err=ComputeEquivalentWidthNonLinearwthStatErr(WL,fl_smooth,errfl_smooth,wl1,wl2,wl3,wl4,ndeg=1)
+            else:
+                #ShowEquivalentWidthNonLinear2(WL,fl_smooth,wl1,wl2,wl3,wl4,ndeg=deg,label=thetitle)
+                #ShowEquivalentWidthNonLinearwthStatErr(WL,fl_smooth,errfl_smooth,wl1,wl2,wl3,wl4,ndeg=deg,label=thetitle)
+                eqw,eqw_err=ComputeEquivalentWidthNonLinearwthStatErr(WL,fl_smooth,errfl_smooth,wl1,wl2,wl3,wl4,ndeg=deg)
+            #plt.fill_between(WL,y1=fl_smooth-1.96*errfl_smooth,y2=fl_smooth+1.96*errfl_smooth,facecolor='grey',alpha=0.5)
+        
+   
+            EQW_coll.append(eqw)
+            EQWErr_coll.append(eqw_err)
+     
+    EQW_coll=np.array(EQW_coll)    
+    EQWErr_coll=np.array(EQWErr_coll)  
+    
+   
+    
+    all_indexes=np.array(all_indexes)
+    
+    aver=np.average(EQW_coll,weights=1/ EQWErr_coll**2)
+    sigma=np.std(EQW_coll)
+    
+    EQWMIN=aver-sigma
+    EQWMAX=aver+sigma
+    
+    plt.figure(figsize=(18,4))              
+    plt.errorbar(all_indexes,EQW_coll,yerr=EQWErr_coll,fmt='o',color='blue',ecolor='red')   
+
+    plt.plot([all_indexes[0],all_indexes[-1]],[aver,aver],'r-')
+    plt.fill_between([all_indexes[0],all_indexes[-1]],y1=[EQWMIN,EQWMIN],y2=[EQWMAX,EQWMAX],facecolor='grey',alpha=0.25)
+    plt.grid()  
+    
+    plt.title(the_title)
+    plt.xlabel("index")   
+    plt.ylabel("EQW")  
+      
+    return EQW_coll, EQWErr_coll
+    #plt.legend()
+#----------------------------------------------------------------------------------
