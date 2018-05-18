@@ -136,6 +136,25 @@ def get_index_from_filename(ffilename,the_searchtag):
     sel_index= int(re.findall(the_searchtag,fn)[0])
     return sel_index
 #--------------------------------------------------------------------------------------
+def weighted_avg_and_std(values, weights):
+    """
+    Return the weighted average and standard deviation.
+
+    values, weights -- Numpy ndarrays with the same shape.
+    
+    For example for the PSF
+    
+    x=pixel number
+    y=Intensity in pixel
+    
+    values-x
+    weights=y=f(x)
+    
+    """
+    average = np.average(values, weights=weights)
+    variance = np.average((values-average)**2, weights=weights)  # Fast and numerically precise
+    return (average, np.sqrt(variance))
+#-----------------------------------------------------------------------------------
 def Convert_InFloat(arr_str):
     """
     In the logbook the decimal point is converted into a comma.
@@ -3022,42 +3041,7 @@ def ComputeEquivalentWidthNonLinearwthStatErr(wl,spec,specerr,wl1,wl2,wl3,wl4,nd
    
         
 
-#---------------------------------------------------------------------------------------------------
-def ComputeAllEquivalentWidthNonLinear(all_wl,all_spec,wl1,wl2,wl3,wl4,ndeg=3):
-    
-    EQW_coll = []
-    
-    NBSPECTRA=len(all_spec)
-    
-    for index in np.arange(0,NBSPECTRA):        
-        spectrum=all_spec[index]
-        wl=all_wl[index]
-        eqw=ComputeEquivalentWidthNonLinear(wl,spectrum,wl1,wl2,wl3,wl4,ndeg=ndeg)
-        EQW_coll.append(eqw)
-        
-    return np.array(EQW_coll)
-#--------------------------------------------------------------------------------------------
-#---------------------------------------------------------------------------------------------------
-def ComputeAllEquivalentWidthNonLinearwthStatErr(all_wl,all_spec,all_spec_err,wl1,wl2,wl3,wl4,ndeg=3):
-    
-    EQW_coll = []
-    EQWErr_coll = []
-    
-    NBSPECTRA=len(all_spec)
-    
-    for index in np.arange(0,NBSPECTRA):        
-        spectrum=all_spec[index]
-        wl=all_wl[index]
-        err=all_spec_err[index]
-        
-        eqw,eqw_err=ComputeEquivalentWidthNonLinearwthStatErr(wl,spectrum,err,wl1,wl2,wl3,wl4,ndeg=ndeg)
-        EQW_coll.append(eqw)
-        EQWErr_coll.append(eqw_err)
-        
-    EQW_coll=np.array(EQW_coll)    
-    EQWErr_coll=np.array(EQWErr_coll)    
-    return EQW_coll, EQWErr_coll
-#--------------------------------------------------------------------------------------------
+
 #--------------------------------------------------------------------------------------------
 def PlotEquivalentWidthVsAirMass(all_eqw_width,all_eqw_width_sim,all_am,all_filt,tagabsline,dir_top_img,figname,spec_err=None,EQWMIN=2.,EQWMAX=5.):
     """
@@ -3520,7 +3504,7 @@ def ComputeEQWDataSimSmooth(the_filelist,the_obs,the_searchtag,wlshift,the_title
                          wl1=880,wl2=900,wl3=1000,wl4=1020,mod='lin',deg=2):
 
     jet =plt.get_cmap('jet') 
-    VMAX=len(the_filelist)
+    VMAX=len(the_obs)
     cNorm  = colors.Normalize(vmin=0, vmax=VMAX)
     scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=jet)
     
@@ -3530,6 +3514,8 @@ def ComputeEQWDataSimSmooth(the_filelist,the_obs,the_searchtag,wlshift,the_title
     EQW_coll = []
     all_colors= []
     all_indexes = []
+    all_airmasses = []
+    all_colors=[]
     
     plt.figure(figsize=(10,8))
     num=0
@@ -3546,6 +3532,7 @@ def ComputeEQWDataSimSmooth(the_filelist,the_obs,the_searchtag,wlshift,the_title
             data=hdu[0].data
             header=hdu[0].header
             filt=header["FILTER2"]
+            airmass=header["AIRMASS"]
             
             wl=data[0]+wl_correction
             fl=data[1]
@@ -3573,6 +3560,7 @@ def ComputeEQWDataSimSmooth(the_filelist,the_obs,the_searchtag,wlshift,the_title
            
             
             all_indexes.append(idx)
+            all_airmasses.append(airmass)
             
             colorVal = scalarMap.to_rgba(num,alpha=1)
             
@@ -3588,30 +3576,47 @@ def ComputeEQWDataSimSmooth(the_filelist,the_obs,the_searchtag,wlshift,the_title
     
 
               
-            all_colors.append(colorVal )        
+            all_colors.append(colorVal)        
             EQW_coll.append(eqw)
+            all_colors.append(colorVal)
+            num+=1
 
     EQW_coll=np.array(EQW_coll)  
     all_indexes=np.array(all_indexes)
+    all_airmasses=np.array(all_airmasses)
+    all_colors=np.array(all_colors)
     
-    plt.figure(figsize=(18,4))  
-    
-    plt.plot(all_indexes,EQW_coll,'bo')  
+   
     
     aver=np.average(EQW_coll)
     sigma=np.std(EQW_coll)
     
+    str_result=" : EQW = {:3.2f} +/- {:3.2f} nm".format(aver,sigma)
+    the_title=the_title+str_result
+    
     EQWMIN=aver-sigma
     EQWMAX=aver+sigma
     
+    #---------------------------------------------------------------------------------
+    plt.figure(figsize=(20,4))      
+    plt.plot(all_indexes,EQW_coll,'bo')  
     plt.plot([all_indexes[0],all_indexes[-1]],[aver,aver],'r-')
-    plt.fill_between([all_indexes[0],all_indexes[-1]],y1=[EQWMIN,EQWMIN],y2=[EQWMAX,EQWMAX],facecolor='grey',alpha=0.25)
-               
+    plt.fill_between([all_indexes[0],all_indexes[-1]],y1=[EQWMIN,EQWMIN],y2=[EQWMAX,EQWMAX],facecolor='grey',alpha=0.25)         
     plt.grid()    
-    plt.title(the_title)
-    plt.xlabel("index")   
-    plt.ylabel("EQW")   
-    
+    plt.title(the_title,fontweight='bold',fontsize=20)
+    plt.xlabel("index of image",fontweight='bold')   
+    plt.ylabel("Equivalent width  (nm)",fontweight='bold')  
+    #---------------------------------------------------------------------------------
+    plt.figure(figsize=(20,4))              
+    plt.scatter(all_airmasses,EQW_coll,marker='o',vmin=0,vmax=num,color=all_colors)   
+    plt.plot([all_airmasses.min(),all_airmasses.max()],[aver,aver],'r-')
+    plt.fill_between([all_airmasses.min(),all_airmasses.max()],y1=[EQWMIN,EQWMIN],y2=[EQWMAX,EQWMAX],facecolor='grey',alpha=0.25)
+    plt.grid()    
+    plt.title(the_title,fontweight='bold',fontsize=20)
+    plt.xlabel("airmass",fontweight='bold')   
+    plt.ylabel("Equivalent width (nm)",fontweight='bold')  
+    #-------------------------------------------------------------------------------------
+      
     return EQW_coll
 #--------------------------------------------------------------------------------- 
 #--------------------------------------------------------------------------------- 
@@ -3622,7 +3627,7 @@ def ComputeEQWDataSimSmoothWithStatErr(the_filelist,the_obs,the_searchtag,wlshif
     the_selected_indexes=the_obs["index"].values  # get the array of index for that disperser
     
     jet =plt.get_cmap('jet') 
-    VMAX=len(the_filelist)
+    VMAX=len(the_obs)
     cNorm  = colors.Normalize(vmin=0, vmax=VMAX)
     scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=jet)
     
@@ -3631,7 +3636,8 @@ def ComputeEQWDataSimSmoothWithStatErr(the_filelist,the_obs,the_searchtag,wlshif
     EQW_coll = []
     EQWErr_coll = []
     all_indexes = []
-    
+    all_airmasses = []
+    all_colors=[]
   
     num=0
     for the_file in the_filelist:
@@ -3647,6 +3653,7 @@ def ComputeEQWDataSimSmoothWithStatErr(the_filelist,the_obs,the_searchtag,wlshif
             data=hdu[0].data
             header=hdu[0].header
             filt=header["FILTER2"]
+            airmass=header["AIRMASS"]
             
             wl=data[0]+wl_correction
             fl=data[1]
@@ -3671,6 +3678,7 @@ def ComputeEQWDataSimSmoothWithStatErr(the_filelist,the_obs,the_searchtag,wlshif
             errfl_smooth=smooth(er0,window_len=Wwidth)
             
             all_indexes.append(idx)
+            all_airmasses.append(airmass)
             
             
             colorVal = scalarMap.to_rgba(num,alpha=1)
@@ -3688,31 +3696,49 @@ def ComputeEQWDataSimSmoothWithStatErr(the_filelist,the_obs,the_searchtag,wlshif
    
             EQW_coll.append(eqw)
             EQWErr_coll.append(eqw_err)
-     
+            all_colors.append(colorVal)
+            num+=1
+  
+    # transform in a numy array
     EQW_coll=np.array(EQW_coll)    
-    EQWErr_coll=np.array(EQWErr_coll)  
-    
-   
-    
+    EQWErr_coll=np.array(EQWErr_coll)    
     all_indexes=np.array(all_indexes)
+    all_airmasses=np.array(all_airmasses)
+    all_colors=np.array(all_colors)
+     
+    #aver=np.average(EQW_coll,weights=1/ EQWErr_coll**2)
+    #sigma=np.std(EQW_coll)
     
-    aver=np.average(EQW_coll,weights=1/ EQWErr_coll**2)
-    sigma=np.std(EQW_coll)
+    aver,sigma=weighted_avg_and_std(EQW_coll, 1./ EQWErr_coll**2)
     
     EQWMIN=aver-sigma
     EQWMAX=aver+sigma
     
-    plt.figure(figsize=(18,4))              
+    str_result=" : EQW = {:3.2f} +/- {:3.2f} nm".format(aver,sigma)
+    the_title=the_title+  str_result
+    
+    #---------------------------------------------------------------------------------
+    plt.figure(figsize=(20,4))              
     plt.errorbar(all_indexes,EQW_coll,yerr=EQWErr_coll,fmt='o',color='blue',ecolor='red')   
-
     plt.plot([all_indexes[0],all_indexes[-1]],[aver,aver],'r-')
     plt.fill_between([all_indexes[0],all_indexes[-1]],y1=[EQWMIN,EQWMIN],y2=[EQWMAX,EQWMAX],facecolor='grey',alpha=0.25)
-    plt.grid()  
+    plt.grid()    
+    plt.title(the_title,fontweight='bold',fontsize=20)
+    plt.xlabel("index of image",fontweight='bold')   
+    plt.ylabel("Equivalent width (nm)",fontweight='bold')  
+    #-------------------------------------------------------------------------------------
+    #---------------------------------------------------------------------------------
+    plt.figure(figsize=(20,4))              
+    plt.errorbar(all_airmasses,EQW_coll,yerr=EQWErr_coll,fmt='.',color='blue',ecolor='red') 
+    plt.scatter(all_airmasses,EQW_coll,marker='o',vmin=0,vmax=num,color=all_colors)   
+    plt.plot([all_airmasses.min(),all_airmasses.max()],[aver,aver],'r-')
+    plt.fill_between([all_airmasses.min(),all_airmasses.max()],y1=[EQWMIN,EQWMIN],y2=[EQWMAX,EQWMAX],facecolor='grey',alpha=0.25)
+    plt.grid()    
+    plt.title(the_title,fontweight='bold',fontsize=20)
+    plt.xlabel("airmass",fontweight='bold')   
+    plt.ylabel("Equivalent width (nm)",fontweight='bold')  
+    #-------------------------------------------------------------------------------------
     
-    plt.title(the_title)
-    plt.xlabel("index")   
-    plt.ylabel("EQW")  
-      
     return EQW_coll, EQWErr_coll
-    #plt.legend()
+    
 #----------------------------------------------------------------------------------
