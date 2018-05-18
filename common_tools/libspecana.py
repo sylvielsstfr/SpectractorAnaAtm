@@ -319,9 +319,9 @@ def smooth(x,window_len=11,window='hanning'):
         return y[(window_len/2-1):-(window_len/2)] 
     
 #--------------------------------------------------------------------------------
-def Extrapolate(X,Y):
+def Extrapolate(X,Y,YMIN=0):
     # extrapolate X and Y
-    YMIN=Y.min()-1.
+    
     X=np.insert(X,0,X[0]-1)
     X=np.insert(X,0,WL[0])
     X=np.append(X,WL[-1])
@@ -729,6 +729,13 @@ def PlotSpectraDataSimSmooth(the_filelist,the_obs,the_searchtag,wlshift,the_titl
             err=data[2]
             
             # extend range for (wl1,fl1)
+            
+            #Extrapolate(X,Y,YMIN=0)
+            ##########################
+            wl=np.insert(wl,0,wl[0]-1)
+            fl=np.insert(fl,0,0.)
+            err=np.insert(err,0,0.)
+            
             wl=np.insert(wl,0,WL[0])
             fl=np.insert(fl,0,0.)
             err=np.insert(err,0,0.)
