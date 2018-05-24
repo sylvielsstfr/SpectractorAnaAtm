@@ -763,6 +763,116 @@ def PlotSpectraDataSimSmooth(the_filelist,the_obs,the_searchtag,wlshift,the_titl
     plt.xlabel("$\lambda$ (nm)")   
     plt.ylabel("smoothed spectra")   
     #plt.legend()
+    
+#------------------------------------------------------------------------------------------------------------------    
+def PlotSpectraRatioHighOrderDataSimSmooth(the_filelist,the_obs,the_searchtag,wlshift,the_title,FLAG_WL_CORRECTION,Flag_corr_wl=False,Wwidth=11):
+
+    jet =plt.get_cmap('jet') 
+    VMAX=len(the_filelist)
+    cNorm  = colors.Normalize(vmin=0, vmax=VMAX)
+    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=jet)
+    
+    
+    # Sepecration /blue / High Order
+    
+    WL0=800.
+    
+    indexes_o1=np.where(WL<=WL0)[0]
+    indexes_o2=np.where(WL>WL0)[0]
+    
+    WL_o1=WL[indexes_o1]
+    WL_o2=WL[indexes_o2]/2.
+    
+    
+    the_selected_indexes=the_obs["index"].values  # get the array of index for that disperser
+    
+    plt.figure(figsize=(10,8))
+    num=0
+    for the_file in the_filelist:
+        num=num+1
+        idx=get_index_from_filename(the_file,the_searchtag)
+        if idx in the_selected_indexes:
+            if FLAG_WL_CORRECTION and Flag_corr_wl:
+                wl_correction=wlshift[wlshift["index"]==idx].loc[:,"wlshift"].values[0]
+            else:
+                wl_correction=0
+            
+            hdu = fits.open(the_file)
+            data=hdu[0].data
+            wl=data[0]+wl_correction
+            fl=data[1]
+            err=data[2]
+            
+            # extend range for (wl1,fl1)
+            
+            #Extrapolate(X,Y,YMIN=0)
+            ##########################
+            wl=np.insert(wl,0,wl[0]-1)
+            fl=np.insert(fl,0,0.)
+            err=np.insert(err,0,0.)
+            
+            wl=np.insert(wl,0,WL[0])
+            fl=np.insert(fl,0,0.)
+            err=np.insert(err,0,0.)
+            
+            wl=np.append(wl,WL[-1])
+            fl=np.append(fl,0.)
+            err=np.append(err,0.)
+            
+            func = interpolate.interp1d(wl, fl)
+            efunc = interpolate.interp1d(wl, err) 
+            
+            fl0=func(WL)
+            er0=efunc(WL)
+            
+            #this is the full spectra
+            fl_smooth=smooth(fl0,window_len=Wwidth)
+            errfl_smooth=smooth(er0,window_len=Wwidth)
+            
+               
+            colorVal = scalarMap.to_rgba(num,alpha=1)
+            
+            
+            # extract order1/order2
+            fl_o1=fl_smooth[indexes_o1]
+            fl_o2=fl_smooth[indexes_o2]
+            
+            #plt.plot(WL_o2,fl_o2,'-',c=colorVal)
+            #plt.plot(WL_o1,fl_o1,':',c=colorVal)
+            
+            #
+            func_o1=interpolate.interp1d(WL_o1, fl_o1)
+            func_o2= interpolate.interp1d(WL_o2, fl_o2)
+            
+            
+            o2divo1=np.zeros(len(WL_o1))
+            
+            XX=[]
+            YY=[]
+            for wl in WL_o1:
+                if wl>=WL_o2[0] and wl<=WL_o2[-1]:
+                    ratio=func_o2(wl)/func_o1(wl)
+                    XX.append(wl)
+                    YY.append(ratio)
+                    
+            
+            colorVal = scalarMap.to_rgba(num,alpha=1)
+            
+            #plt.fill_between(WL,y1=fl_smooth-1.96*errfl_smooth,y2=fl_smooth+1.96*errfl_smooth,facecolor='grey',alpha=0.5)
+            
+            plt.plot(XX,YY,c=colorVal,label=str(idx))
+            plt.ylim=(0.,0.2)  
+            
+    plt.ylim=(0.,0.2)        
+    plt.grid()    
+    plt.title(the_title)
+    plt.xlabel("$\lambda$ (nm)")   
+    plt.ylabel("High order fraction") 
+   
+    plt.show()
+    #plt.legend()
+#-----------------------------------------------------------------------------------------   
+    
 #-----------------------------------------------------------------------------------------
 def PlotSpectraRatioDataDivSimSmooth(the_filelist,path_tosims,the_obs,the_searchtag,wlshift,the_title,FLAG_WL_CORRECTION,Flag_corr_wl=False,
                                      XMIN=400,XMAX=1000.,YMIN=0,YMAX=0,Wwidth=21):
