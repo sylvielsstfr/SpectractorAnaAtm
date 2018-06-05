@@ -787,6 +787,8 @@ def PlotSpectraRatioHighOrderDataSimSmooth(the_filelist,the_obs,the_searchtag,wl
     the_selected_indexes=the_obs["index"].values  # get the array of index for that disperser
     
     plt.figure(figsize=(10,8))
+    all_XX=[]
+    all_YY=[]
     num=0
     for the_file in the_filelist:
         num=num+1
@@ -855,12 +857,15 @@ def PlotSpectraRatioHighOrderDataSimSmooth(the_filelist,the_obs,the_searchtag,wl
                     XX.append(wl)
                     YY.append(ratio)
                     
-            
+            XX=np.array(XX)
+            YY=np.array(YY)
             colorVal = scalarMap.to_rgba(num,alpha=1)
             
             #plt.fill_between(WL,y1=fl_smooth-1.96*errfl_smooth,y2=fl_smooth+1.96*errfl_smooth,facecolor='grey',alpha=0.5)
             
             plt.plot(XX,YY,c=colorVal,label=str(idx))
+            all_XX.append(XX)
+            all_YY.append(YY)
             plt.ylim=(0.,0.2)  
             
     plt.ylim=(0.,0.2)        
@@ -870,6 +875,7 @@ def PlotSpectraRatioHighOrderDataSimSmooth(the_filelist,the_obs,the_searchtag,wl
     plt.ylabel("High order fraction") 
    
     plt.show()
+    return np.array(all_XX),np.array(all_YY)
     #plt.legend()
 #-----------------------------------------------------------------------------------------   
     
